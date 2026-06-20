@@ -32,9 +32,13 @@ public class WbsService {
     }
 
     @Transactional
-    public WbsNode updateNode(Long nodeId, WbsDto.UpdateRequest req) {
+    public WbsNode updateNode(Long projectId, Long nodeId, WbsDto.UpdateRequest req) {
         WbsNode node = wbsRepository.findById(nodeId)
             .orElseThrow(() -> new EntityNotFoundException("節點不存在"));
+        // 防止 IDOR：確認節點屬於請求路徑中的專案
+        if (!node.getProject().getId().equals(projectId)) {
+            throw new SecurityException("節點不屬於此專案");
+        }
         if (req.getTitle()   != null) node.setTitle(req.getTitle());
         if (req.getOwner()   != null) node.setOwner(req.getOwner());
         if (req.getStartDate() != null) node.setStartDate(req.getStartDate());
@@ -45,7 +49,13 @@ public class WbsService {
     }
 
     @Transactional
-    public void deleteNode(Long nodeId) {
+    public void deleteNode(Long projectId, Long nodeId) {
+        WbsNode node = wbsRepository.findById(nodeId)
+            .orElseThrow(() -> new EntityNotFoundException("節點不存在"));
+        // 防止 IDOR：確認節點屬於請求路徑中的專案
+        if (!node.getProject().getId().equals(projectId)) {
+            throw new SecurityException("節點不屬於此專案");
+        }
         deleteRecursive(nodeId);
     }
 

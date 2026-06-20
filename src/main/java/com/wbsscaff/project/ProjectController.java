@@ -79,8 +79,14 @@ public class ProjectController {
             @PathVariable Long id,
             @RequestBody Map<String, Long> body,
             @AuthenticationPrincipal UserDetails userDetails) {
-        User requester = userRepository.findByEmail(userDetails.getUsername()).orElseThrow();
-        projectService.addMember(id, body.get("userId"), requester.getId());
+        // 只有管理員或專案負責人才可新增成員，防止任意成員擴權
+        User caller = userRepository.findByEmail(userDetails.getUsername())
+            .orElseThrow(() -> new EntityNotFoundException("使用者不存在"));
+        Project project = projectService.getById(id);
+        if (caller.getRole() != User.Role.ADMIN && !project.getOwner().getId().equals(caller.getId())) {
+            throw new SecurityException("只有管理員或專案負責人可以新增成員");
+        }
+        projectService.addMember(id, body.get("userId"), caller.getId());
         return ApiResponse.ok(null);
     }
 

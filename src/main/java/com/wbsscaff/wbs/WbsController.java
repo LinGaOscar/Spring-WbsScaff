@@ -44,7 +44,7 @@ public class WbsController {
             @RequestBody WbsDto.UpdateRequest req,
             @AuthenticationPrincipal UserDetails userDetails) {
         checkMember(projectId, userDetails);
-        return ApiResponse.ok(WbsDto.Response.from(wbsService.updateNode(nodeId, req)));
+        return ApiResponse.ok(WbsDto.Response.from(wbsService.updateNode(projectId, nodeId, req)));
     }
 
     @DeleteMapping("/api/projects/{projectId}/nodes/{nodeId}")
@@ -52,7 +52,7 @@ public class WbsController {
             @PathVariable Long nodeId,
             @AuthenticationPrincipal UserDetails userDetails) {
         checkMember(projectId, userDetails);
-        wbsService.deleteNode(nodeId);
+        wbsService.deleteNode(projectId, nodeId);
         return ApiResponse.ok(null);
     }
 

@@ -47,7 +47,7 @@ public class CollabController {
             @Header("nodeId") Long nodeId,
             Principal principal) {
         User user = userRepository.findByEmail(principal.getName()).orElseThrow();
-        WbsDto.Response updated = WbsDto.Response.from(wbsService.updateNode(nodeId, req));
+        WbsDto.Response updated = WbsDto.Response.from(wbsService.updateNode(projectId, nodeId, req));
 
         NodeChangeMessage msg = new NodeChangeMessage();
         msg.setType(NodeChangeMessage.Type.NODE_UPDATE);
@@ -86,7 +86,7 @@ public class CollabController {
     public void onNodeDelete(@DestinationVariable Long projectId,
             @Header("nodeId") Long nodeId, Principal principal) {
         User user = userRepository.findByEmail(principal.getName()).orElseThrow();
-        wbsService.deleteNode(nodeId);
+        wbsService.deleteNode(projectId, nodeId);
 
         NodeChangeMessage msg = new NodeChangeMessage();
         msg.setType(NodeChangeMessage.Type.NODE_DELETE);

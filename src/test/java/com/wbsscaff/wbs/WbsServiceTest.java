@@ -70,7 +70,7 @@ class WbsServiceTest {
         child.setTitle("子節點"); child.setParentId(parentNode.getId()); child.setSortOrder(0);
         wbsService.createNode(project.getId(), child);
 
-        wbsService.deleteNode(parentNode.getId());
+        wbsService.deleteNode(project.getId(), parentNode.getId());
 
         assertThat(wbsService.getNodes(project.getId())).isEmpty();
     }
