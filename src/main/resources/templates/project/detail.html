@@ -16,6 +16,8 @@
           <button class="btn btn-sm" @click="addRoot">+ 新增根節點</button>
           <button class="btn btn-sm" @click="exportCsv">匯出 CSV</button>
           <button class="btn btn-sm" @click="exportXlsx">匯出 XLSX</button>
+          <button class="btn btn-sm" @click="showTemplateModal=true" v-if="!hasNodes">套用模板</button>
+          <button class="btn btn-sm" @click="saveAsTemplate">另存為模板</button>
         </div>
       </div>
       <div class="wbs-tree" v-if="roots.length">
@@ -127,8 +129,10 @@
       setup() {
         const flatNodes = ref([]);
         const projectName = ref('');
+        const showTemplateModal = ref(false);
 
         const roots = computed(() => buildTree(flatNodes.value));
+        const hasNodes = computed(() => flatNodes.value.length > 0);
 
         function buildTree(nodes) {
           const map = {};
@@ -219,9 +223,27 @@
           XLSX.writeFile(wb, `wbs-${PROJECT_ID}.xlsx`);
         }
 
+        async function applyTemplate(templateId) {
+          await api(`/api/projects/${PROJECT_ID}/nodes/init`, {
+            method: 'POST', body: JSON.stringify({ templateId })
+          });
+          showTemplateModal.value = false;
+          load();
+        }
+
+        async function saveAsTemplate() {
+          const name = prompt('模板名稱');
+          if (!name) return;
+          const d = await api(`/api/projects/${PROJECT_ID}/save-as-template`, {
+            method: 'POST', body: JSON.stringify({ name })
+          });
+          if (d.success) alert('已儲存為自訂模板：' + d.data.name);
+        }
+
         onMounted(load);
         return { roots, projectName, addRoot, addChild, deleteNode, updateNode,
-                 exportCsv, exportXlsx };
+                 exportCsv, exportXlsx, hasNodes, showTemplateModal,
+                 applyTemplate, saveAsTemplate };
       }
     }).mount('#app');
   </script>
