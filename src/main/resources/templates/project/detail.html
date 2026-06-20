@@ -24,6 +24,11 @@
                   @update="updateNode"></wbs-node>
       </div>
       <p v-else style="color:#636e72;margin-top:1rem">尚無節點，點擊「新增根節點」開始</p>
+      <!-- 協作者 placeholder — Plan 4 WebSocket 接入點 -->
+      <div id="collab-bar" style="padding:8px;background:#f5f5f5;border-top:1px solid #e0e0e0;">
+        <span>目前協作者：</span>
+        <span id="presence-list">—</span>
+      </div>
     </main>
   </div>
   <div th:replace="~{fragments/footer :: footer}"></div>
@@ -33,7 +38,7 @@
   <script th:inline="javascript">
     const CSRF_HEADER  = /*[[${_csrf.headerName}]]*/ 'X-CSRF-TOKEN';
     const CSRF_TOKEN   = /*[[${_csrf.token}]]*/ '';
-    const PROJECT_ID   = /*[[${#request.requestURI.split('/')[2]}]]*/ 0;
+    const PROJECT_ID   = /*[[${project.id}]]*/ 0;
   </script>
   <script>
     const { createApp, ref, computed, onMounted, defineComponent } = Vue;
@@ -60,7 +65,15 @@
             <span class="wbs-status-badge" @click="cycleStatus">
               {{ STATUS_LABEL[node.status] }}
             </span>
-            <span class="wbs-owner" v-if="node.owner">{{ node.owner }}</span>
+            <!-- 負責人、開始日、結束日、備註：直接可編輯，失焦後呼叫 PUT 儲存 -->
+            <input class="wbs-field-input" type="text" v-model="editOwner"
+                   placeholder="負責人" @blur="commitField('owner', editOwner)" />
+            <input class="wbs-field-input" type="date" v-model="editStartDate"
+                   @blur="commitField('startDate', editStartDate)" />
+            <input class="wbs-field-input" type="date" v-model="editEndDate"
+                   @blur="commitField('endDate', editEndDate)" />
+            <input class="wbs-field-input" type="text" v-model="editNotes"
+                   placeholder="備註" @blur="commitField('notes', editNotes)" />
             <div class="wbs-node-actions">
               <button @click="$emit('add-child', node)">+ 子</button>
               <button @click="$emit('delete', node)">刪</button>
@@ -77,6 +90,12 @@
       setup(props, { emit }) {
         const editTitle = ref('');
         const titleInput = ref(null);
+        // 其他欄位的可編輯 ref，初始值從節點資料取得
+        const editOwner     = ref(props.node.owner     || '');
+        const editStartDate = ref(props.node.startDate || '');
+        const editEndDate   = ref(props.node.endDate   || '');
+        const editNotes     = ref(props.node.notes     || '');
+
         function startEdit() {
           editTitle.value = props.node.title;
           props.node._editing = true;
@@ -92,7 +111,14 @@
           const next = STATUS_CYCLE[props.node.status];
           emit('update', { node: props.node, changes: { status: next } });
         }
-        return { editTitle, titleInput, startEdit, commitEdit, cycleStatus, STATUS_LABEL };
+        // 通用欄位失焦儲存：只有值改變才送 PUT
+        function commitField(field, value) {
+          if (value !== (props.node[field] || '')) {
+            emit('update', { node: props.node, changes: { [field]: value || null } });
+          }
+        }
+        return { editTitle, titleInput, editOwner, editStartDate, editEndDate, editNotes,
+                 startEdit, commitEdit, cycleStatus, commitField, STATUS_LABEL };
       }
     });
 

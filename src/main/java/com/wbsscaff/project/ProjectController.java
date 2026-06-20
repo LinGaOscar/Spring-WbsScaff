@@ -10,6 +10,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.Map;
@@ -26,7 +27,11 @@ public class ProjectController {
     public String projectsPage() { return "project/list"; }
 
     @GetMapping("/projects/{id}")
-    public String projectDetailPage() { return "project/detail"; }
+    public String projectDetailPage(@PathVariable Long id, Model model) {
+        // 將專案 ID 注入 model，讓 Thymeleaf 安全地輸出，避免 URI 字串解析風險
+        model.addAttribute("project", projectService.getById(id));
+        return "project/detail";
+    }
 
     @GetMapping("/api/projects")
     @ResponseBody
