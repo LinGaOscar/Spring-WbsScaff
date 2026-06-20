@@ -3,6 +3,7 @@ package com.wbsscaff.project;
 import com.wbsscaff.common.ApiResponse;
 import com.wbsscaff.user.User;
 import com.wbsscaff.user.UserRepository;
+import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -31,12 +32,12 @@ public class ProjectController {
     @ResponseBody
     public ApiResponse<List<ProjectDto.Response>> listProjects(
             @AuthenticationPrincipal UserDetails userDetails) {
-        // 找不到使用者（如測試虛擬帳號）時回傳空清單，避免 500
-        return userRepository.findByEmail(userDetails.getUsername())
-            .map(user -> ApiResponse.<List<ProjectDto.Response>>ok(
-                projectService.listForUser(user.getId())
-                    .stream().map(ProjectDto.Response::from).toList()))
-            .orElse(ApiResponse.ok(List.of()));
+        // 使用者不存在視為認證異常，拋出例外由 GlobalExceptionHandler 處理
+        User user = userRepository.findByEmail(userDetails.getUsername())
+            .orElseThrow(() -> new EntityNotFoundException("使用者不存在"));
+        return ApiResponse.ok(
+            projectService.listForUser(user.getId())
+                .stream().map(ProjectDto.Response::from).toList());
     }
 
     @PostMapping("/api/projects")
@@ -73,7 +74,17 @@ public class ProjectController {
 
     @DeleteMapping("/api/projects/{id}/members/{userId}")
     @ResponseBody
-    public ApiResponse<Void> removeMember(@PathVariable Long id, @PathVariable Long userId) {
+    public ApiResponse<Void> removeMember(
+            @PathVariable Long id,
+            @PathVariable Long userId,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        // 只有管理員或專案負責人才可移除成員
+        User caller = userRepository.findByEmail(userDetails.getUsername())
+            .orElseThrow(() -> new EntityNotFoundException("使用者不存在"));
+        Project project = projectService.getById(id);
+        if (caller.getRole() != User.Role.ADMIN && !project.getOwner().getId().equals(caller.getId())) {
+            throw new SecurityException("只有管理員或專案負責人可以移除成員");
+        }
         projectService.removeMember(id, userId);
         return ApiResponse.ok(null);
     }

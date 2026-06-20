@@ -37,6 +37,7 @@ public class ProjectService {
         return saved;
     }
 
+    @Transactional(readOnly = true)
     public List<Project> listForUser(Long userId) {
         return projectRepository.findByMemberOrOwner(userId);
     }
@@ -46,7 +47,8 @@ public class ProjectService {
         if (memberRepository.existsByIdProjectIdAndIdUserId(projectId, userId)) return;
         ProjectMember m = new ProjectMember();
         m.setId(new ProjectMemberId(projectId, userId));
-        User assignedBy = userRepository.findById(assignedById).orElseThrow();
+        User assignedBy = userRepository.findById(assignedById)
+            .orElseThrow(() -> new EntityNotFoundException("使用者不存在"));
         m.setAssignedBy(assignedBy);
         memberRepository.save(m);
     }

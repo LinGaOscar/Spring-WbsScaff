@@ -59,10 +59,14 @@ public class WbsService {
     @Transactional
     public void reorder(Long projectId, List<WbsDto.ReorderItem> items) {
         items.forEach(item -> {
-            wbsRepository.findById(item.getNodeId()).ifPresent(node -> {
-                node.setSortOrder(item.getSortOrder());
-                wbsRepository.save(node);
-            });
+            WbsNode node = wbsRepository.findById(item.getNodeId())
+                .orElseThrow(() -> new EntityNotFoundException("節點不存在"));
+            // 防止跨專案竄改：確認節點屬於當前專案
+            if (!node.getProject().getId().equals(projectId)) {
+                throw new SecurityException("節點不屬於此專案");
+            }
+            node.setSortOrder(item.getSortOrder());
+            wbsRepository.save(node);
         });
     }
 }

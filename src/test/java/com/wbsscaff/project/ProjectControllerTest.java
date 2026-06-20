@@ -1,5 +1,9 @@
 package com.wbsscaff.project;
 
+import com.wbsscaff.user.User;
+import com.wbsscaff.user.UserRepository;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -17,6 +21,29 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class ProjectControllerTest {
 
     @Autowired MockMvc mockMvc;
+    @Autowired UserRepository userRepository;
+    @Autowired ProjectMemberRepository projectMemberRepository;
+    @Autowired ProjectRepository projectRepository;
+
+    @BeforeEach
+    void setUp() {
+        // 建立與 @WithMockUser username 對應的資料庫使用者
+        if (userRepository.findByEmail("admin@test.com").isEmpty()) {
+            User u = new User();
+            u.setEmail("admin@test.com");
+            u.setPasswordHash("x");
+            u.setDisplayName("Admin User");
+            u.setRole(User.Role.ADMIN);
+            userRepository.save(u);
+        }
+    }
+
+    @AfterEach
+    void tearDown() {
+        projectMemberRepository.deleteAll();
+        projectRepository.deleteAll();
+        userRepository.deleteAll();
+    }
 
     @Test
     @WithMockUser(username = "admin@test.com", roles = "ADMIN")
