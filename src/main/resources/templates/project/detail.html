@@ -4,6 +4,8 @@
   <meta charset="UTF-8"><title>WBS 編輯器</title>
   <link rel="stylesheet" th:href="@{/css/app.css}">
   <link rel="stylesheet" th:href="@{/css/wbs.css}">
+  <script th:src="@{/js/sockjs.min.js}"></script>
+  <script th:src="@{/js/stomp.min.js}"></script>
 </head>
 <body>
   <div th:replace="~{fragments/header :: header}"></div>
@@ -12,6 +14,13 @@
     <main class="main-content" id="app">
       <div class="wbs-toolbar">
         <h2>{{ projectName }}</h2>
+        <!-- 協作者在線列表，顯示彩色頭像 -->
+        <div class="presence-bar">
+          <div class="presence-avatar" v-for="u in onlineUsers" :key="u.userId"
+               :style="{background: u.color}" :title="u.displayName">
+            {{ u.displayName[0] }}
+          </div>
+        </div>
         <div class="wbs-actions">
           <button class="btn btn-sm" @click="addRoot">+ 新增根節點</button>
           <button class="btn btn-sm" @click="exportCsv">匯出 CSV</button>
@@ -23,13 +32,13 @@
       <div class="wbs-tree" v-if="roots.length">
         <wbs-node v-for="n in roots" :key="n.id" :node="n"
                   @add-child="addChild" @delete="deleteNode"
-                  @update="updateNode"></wbs-node>
+                  @update="updateNode"
+                  @cursor-move="sendCursor"></wbs-node>
       </div>
       <p v-else style="color:#636e72;margin-top:1rem">尚無節點，點擊「新增根節點」開始</p>
-      <!-- 協作者 placeholder — Plan 4 WebSocket 接入點 -->
-      <div id="collab-bar" style="padding:8px;background:#f5f5f5;border-top:1px solid #e0e0e0;">
-        <span>目前協作者：</span>
-        <span id="presence-list">—</span>
+      <!-- 協作者 placeholder — 已由 Vue presence-bar 取代，保留區塊供舊 CSS 不衝突 -->
+      <div id="collab-bar" style="display:none">
+        <span id="presence-list"></span>
       </div>
     </main>
   </div>
@@ -51,11 +60,12 @@
 
     const WbsNodeComp = defineComponent({
       name: 'wbs-node',
-      props: ['node'],
-      emits: ['add-child','delete','update'],
+      props: ['node', 'cursors'],
+      emits: ['add-child','delete','update','cursor-move'],
       template: `
         <div class="wbs-node-wrap">
-          <div class="wbs-node" :class="'status-'+node.status.toLowerCase()">
+          <div class="wbs-node" :class="'status-'+node.status.toLowerCase()"
+               @mouseenter="onMouseEnter(node.id)" @mouseleave="onMouseLeave()">
             <span class="wbs-toggle" @click="node._open=!node._open">
               {{ node.children?.length ? (node._open?'▼':'▶') : '　' }}
             </span>
@@ -80,12 +90,20 @@
               <button @click="$emit('add-child', node)">+ 子</button>
               <button @click="$emit('delete', node)">刪</button>
             </div>
+            <!-- 顯示正在操作此節點的協作者游標指示點 -->
+            <div class="cursor-indicators">
+              <span v-for="c in nodeCursors(node.id)" :key="c.userId"
+                    class="cursor-dot" :style="{background:c.color}"
+                    :title="c.displayName + (c.editingNodeId===node.id?' 正在編輯':' 正在查看')">
+              </span>
+            </div>
           </div>
           <div class="wbs-children" v-if="node._open && node.children?.length">
-            <wbs-node v-for="c in node.children" :key="c.id" :node="c"
+            <wbs-node v-for="c in node.children" :key="c.id" :node="c" :cursors="cursors"
                       @add-child="$emit('add-child',$event)"
                       @delete="$emit('delete',$event)"
-                      @update="$emit('update',$event)"></wbs-node>
+                      @update="$emit('update',$event)"
+                      @cursor-move="$emit('cursor-move',$event)"></wbs-node>
           </div>
         </div>
       `,
@@ -101,6 +119,7 @@
         function startEdit() {
           editTitle.value = props.node.title;
           props.node._editing = true;
+          emit('cursor-move', { hoveringNodeId: props.node.id, editingNodeId: props.node.id });
           setTimeout(() => titleInput.value?.focus(), 50);
         }
         function commitEdit() {
@@ -108,6 +127,7 @@
             emit('update', { node: props.node, changes: { title: editTitle.value.trim() } });
           }
           props.node._editing = false;
+          emit('cursor-move', { hoveringNodeId: props.node.id, editingNodeId: null });
         }
         function cycleStatus() {
           const next = STATUS_CYCLE[props.node.status];
@@ -119,8 +139,22 @@
             emit('update', { node: props.node, changes: { [field]: value || null } });
           }
         }
+        function onMouseEnter(nodeId) {
+          emit('cursor-move', { hoveringNodeId: nodeId, editingNodeId: null });
+        }
+        function onMouseLeave() {
+          emit('cursor-move', { hoveringNodeId: null, editingNodeId: null });
+        }
+        // 取得正在操作此節點的協作者游標列表
+        function nodeCursors(nodeId) {
+          if (!props.cursors) return [];
+          return Object.values(props.cursors).filter(
+            c => c.hoveringNodeId === nodeId || c.editingNodeId === nodeId
+          );
+        }
         return { editTitle, titleInput, editOwner, editStartDate, editEndDate, editNotes,
-                 startEdit, commitEdit, cycleStatus, commitField, STATUS_LABEL };
+                 startEdit, commitEdit, cycleStatus, commitField,
+                 onMouseEnter, onMouseLeave, nodeCursors, STATUS_LABEL };
       }
     });
 
@@ -130,6 +164,11 @@
         const flatNodes = ref([]);
         const projectName = ref('');
         const showTemplateModal = ref(false);
+
+        // 即時協作狀態
+        const onlineUsers = ref([]);
+        const cursors = ref({});       // userId -> CursorMessage
+        const stompClient = ref(null);
 
         const roots = computed(() => buildTree(flatNodes.value));
         const hasNodes = computed(() => flatNodes.value.length > 0);
@@ -152,50 +191,105 @@
           if (pd.success) projectName.value = pd.data.name;
         }
 
+        // 建立 STOMP 連線並訂閱三個頻道
+        function connectWs() {
+          const sock = new SockJS('/ws');
+          const client = new StompJs.Client({ webSocketFactory: () => sock });
+          client.onConnect = () => {
+            // 節點同步：接收其他人的節點變更
+            client.subscribe(`/topic/project/${PROJECT_ID}/nodes`, msg => {
+              const m = JSON.parse(msg.body);
+              if (m.type === 'NODE_UPDATE') {
+                const idx = flatNodes.value.findIndex(n => n.id === m.nodeId);
+                if (idx !== -1) flatNodes.value[idx] = { ...flatNodes.value[idx], ...m.payload };
+              } else if (m.type === 'NODE_CREATE') {
+                if (!flatNodes.value.find(n => n.id === m.payload.id)) {
+                  flatNodes.value.push(m.payload);
+                }
+              } else if (m.type === 'NODE_DELETE') {
+                flatNodes.value = flatNodes.value.filter(n => n.id !== m.nodeId);
+              }
+            });
+
+            // 游標同步：顯示其他人的游標位置
+            client.subscribe(`/topic/project/${PROJECT_ID}/cursors`, msg => {
+              const c = JSON.parse(msg.body);
+              cursors.value = { ...cursors.value, [c.userId]: c };
+            });
+
+            // 訂閱 presence：取得當前在線列表（SubscribeMapping 回傳）
+            client.subscribe(`/app/project/${PROJECT_ID}/presence`, msg => {
+              onlineUsers.value = JSON.parse(msg.body);
+            });
+
+            // 訂閱 topic presence：即時感知用戶加入／離開
+            client.subscribe(`/topic/project/${PROJECT_ID}/presence`, msg => {
+              const p = JSON.parse(msg.body);
+              if (p.type === 'JOIN') {
+                if (!onlineUsers.value.find(u => u.userId === p.userId)) {
+                  onlineUsers.value = [...onlineUsers.value, p];
+                }
+              } else {
+                onlineUsers.value = onlineUsers.value.filter(u => u.userId !== p.userId);
+                // 清除離線用戶的游標
+                const nc = { ...cursors.value };
+                delete nc[p.userId];
+                cursors.value = nc;
+              }
+            });
+          };
+          client.activate();
+          stompClient.value = client;
+
+          // 頁面關閉時廣播 LEAVE（由 server disconnect event 處理，此為備援）
+          window.addEventListener('beforeunload', () => {
+            if (client.connected) client.deactivate();
+          });
+        }
+
+        // 發送游標位置給 CollabController
+        function sendCursor(cursorData) {
+          if (!stompClient.value?.connected) return;
+          stompClient.value.publish({
+            destination: `/app/project/${PROJECT_ID}/cursor`,
+            body: JSON.stringify(cursorData)
+          });
+        }
+
+        // 以下 CRUD 改為透過 STOMP 送出，由 CollabController 持久化並廣播給所有人
         async function addRoot() {
           const title = prompt('根節點名稱');
           if (!title) return;
-          const d = await api(`/api/projects/${PROJECT_ID}/nodes`, {
-            method: 'POST', body: JSON.stringify({ title, sortOrder: flatNodes.value.length })
+          stompClient.value.publish({
+            destination: `/app/project/${PROJECT_ID}/node/create`,
+            body: JSON.stringify({ title, sortOrder: flatNodes.value.length })
           });
-          if (d.success) flatNodes.value.push(d.data);
         }
 
         async function addChild(parent) {
           const title = prompt('子節點名稱');
           if (!title) return;
           const siblings = flatNodes.value.filter(n => n.parentId === parent.id);
-          const d = await api(`/api/projects/${PROJECT_ID}/nodes`, {
-            method: 'POST',
+          stompClient.value.publish({
+            destination: `/app/project/${PROJECT_ID}/node/create`,
             body: JSON.stringify({ title, parentId: parent.id, sortOrder: siblings.length })
           });
-          if (d.success) flatNodes.value.push(d.data);
         }
 
         async function deleteNode(node) {
           if (!confirm(`確定刪除「${node.title}」及其所有子節點？`)) return;
-          const d = await api(`/api/projects/${PROJECT_ID}/nodes/${node.id}`,
-            { method: 'DELETE' });
-          if (d.success) {
-            const removeIds = new Set(collectIds(node, flatNodes.value));
-            flatNodes.value = flatNodes.value.filter(n => !removeIds.has(n.id));
-          }
-        }
-
-        function collectIds(node, all) {
-          const ids = [node.id];
-          all.filter(n => n.parentId === node.id).forEach(c => ids.push(...collectIds(c, all)));
-          return ids;
+          stompClient.value.publish({
+            destination: `/app/project/${PROJECT_ID}/node/delete`,
+            headers: { nodeId: String(node.id) }
+          });
         }
 
         async function updateNode({ node, changes }) {
-          const d = await api(`/api/projects/${PROJECT_ID}/nodes/${node.id}`, {
-            method: 'PUT', body: JSON.stringify(changes)
+          stompClient.value.publish({
+            destination: `/app/project/${PROJECT_ID}/node/update`,
+            headers: { nodeId: String(node.id) },
+            body: JSON.stringify(changes)
           });
-          if (d.success) {
-            const idx = flatNodes.value.findIndex(n => n.id === node.id);
-            if (idx !== -1) flatNodes.value[idx] = { ...flatNodes.value[idx], ...d.data };
-          }
         }
 
         function exportCsv() {
@@ -240,10 +334,15 @@
           if (d.success) alert('已儲存為自訂模板：' + d.data.name);
         }
 
-        onMounted(load);
+        onMounted(() => {
+          load();
+          connectWs();
+        });
+
         return { roots, projectName, addRoot, addChild, deleteNode, updateNode,
                  exportCsv, exportXlsx, hasNodes, showTemplateModal,
-                 applyTemplate, saveAsTemplate };
+                 applyTemplate, saveAsTemplate,
+                 onlineUsers, cursors, sendCursor };
       }
     }).mount('#app');
   </script>
