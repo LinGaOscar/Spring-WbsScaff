@@ -21,6 +21,8 @@ public class SecurityConfig {
         http
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/login", "/css/**", "/js/**", "/favicon.ico").permitAll()
+                // SockJS fallback 端點需開放，STOMP 認證由 Spring WebSocket 自行處理
+                .requestMatchers("/ws/**").permitAll()
                 .requestMatchers("/admin/**").hasRole("ADMIN")
                 .anyRequest().authenticated()
             )
