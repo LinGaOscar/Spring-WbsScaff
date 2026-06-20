@@ -2,6 +2,10 @@ package com.wbsscaff.common;
 
 import com.wbsscaff.department.Department;
 import com.wbsscaff.department.DepartmentRepository;
+import com.wbsscaff.template.TemplateNodeRepository;
+import com.wbsscaff.template.TemplateRepository;
+import com.wbsscaff.template.WbsTemplate;
+import com.wbsscaff.template.WbsTemplateNode;
 import com.wbsscaff.user.User;
 import com.wbsscaff.user.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -18,11 +22,14 @@ public class DataSeeder implements CommandLineRunner {
     private final DepartmentRepository departmentRepository;
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final TemplateRepository templateRepository;
+    private final TemplateNodeRepository templateNodeRepository;
 
     @Override
     public void run(String... args) {
         seedDepartments();
         seedAdminUser();
+        seedSystemTemplates();
     }
 
     private void seedDepartments() {
@@ -45,5 +52,93 @@ public class DataSeeder implements CommandLineRunner {
         admin.setCanCreateProject(true);
         userRepository.save(admin);
         log.info("已建立初始 ADMIN：admin@wbsscaff.com / admin1234");
+    }
+
+    private void seedSystemTemplates() {
+        if (templateRepository.findByIsSystemTrue().size() >= 2) return;
+
+        createSystemTemplate("新功能開發", "SIT+PROD 兩階段流程（功能開發用）",
+            new String[][]{
+                {"SIT 階段", null},
+                {"環境建置", "SIT 階段"},
+                {"主機申請", "環境建置"},
+                {"防火牆設定", "環境建置"},
+                {"連線測試", "環境建置"},
+                {"執行環境/驅動安裝", "環境建置"},
+                {"測試執行", "SIT 階段"},
+                {"功能測試", "測試執行"},
+                {"整合測試", "測試執行"},
+                {"IT 測試報告", "SIT 階段"},
+                {"PROD 階段", null},
+                {"環境建置", "PROD 階段"},
+                {"主機申請", "環境建置"},
+                {"防火牆設定", "環境建置"},
+                {"連線測試", "環境建置"},
+                {"執行環境/驅動安裝", "環境建置"},
+                {"上線準備", "PROD 階段"},
+                {"USER 測試報告", "上線準備"},
+                {"資安檢核表", "上線準備"},
+                {"系統上線", "PROD 階段"},
+                {"正式部署", "系統上線"},
+                {"交易測試", "系統上線"}
+            });
+
+        createSystemTemplate("專案開發", "SIT+PROD 兩階段流程（專案開發用）",
+            new String[][]{
+                {"SIT 階段", null},
+                {"環境建置", "SIT 階段"},
+                {"主機申請", "環境建置"},
+                {"防火牆設定", "環境建置"},
+                {"連線測試", "環境建置"},
+                {"執行環境/驅動安裝", "環境建置"},
+                {"測試執行", "SIT 階段"},
+                {"功能測試", "測試執行"},
+                {"整合測試", "測試執行"},
+                {"IT 測試報告", "SIT 階段"},
+                {"PROD 階段", null},
+                {"環境建置", "PROD 階段"},
+                {"主機申請", "環境建置"},
+                {"防火牆設定", "環境建置"},
+                {"連線測試", "環境建置"},
+                {"執行環境/驅動安裝", "環境建置"},
+                {"測試驗證", "PROD 階段"},
+                {"黑箱測試", "測試驗證"},
+                {"白箱測試", "測試驗證"},
+                {"第三方測試", "測試驗證"},
+                {"上線準備", "PROD 階段"},
+                {"USER 測試報告", "上線準備"},
+                {"資安檢核表", "上線準備"},
+                {"系統上線", "PROD 階段"},
+                {"正式部署", "系統上線"},
+                {"交易測試", "系統上線"}
+            });
+
+        log.info("已植入 2 個系統模板");
+    }
+
+    private void createSystemTemplate(String name, String desc, String[][] nodeData) {
+        WbsTemplate tpl = new WbsTemplate();
+        tpl.setName(name); tpl.setDescription(desc); tpl.setSystem(true);
+        templateRepository.save(tpl);
+
+        // 以 title|parentTitle 為 key，處理樹狀結構對應
+        java.util.Map<String, WbsTemplateNode> titleMap = new java.util.LinkedHashMap<>();
+        java.util.Map<String, Integer> sortCounters = new java.util.HashMap<>();
+
+        for (String[] row : nodeData) {
+            String title = row[0];
+            String parentTitle = row[1];
+            WbsTemplateNode node = new WbsTemplateNode();
+            node.setTemplateId(tpl.getId());
+            node.setTitle(title);
+            if (parentTitle != null && titleMap.containsKey(parentTitle)) {
+                node.setParentId(titleMap.get(parentTitle).getId());
+            }
+            int order = sortCounters.getOrDefault(parentTitle + "|", 0);
+            node.setSortOrder(order);
+            sortCounters.put(parentTitle + "|", order + 1);
+            templateNodeRepository.save(node);
+            titleMap.put(title, node);
+        }
     }
 }
