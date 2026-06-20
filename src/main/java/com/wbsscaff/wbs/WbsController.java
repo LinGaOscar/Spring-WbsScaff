@@ -26,7 +26,7 @@ public class WbsController {
     @GetMapping("/api/projects/{projectId}/nodes")
     public ApiResponse<List<WbsDto.Response>> getNodes(@PathVariable Long projectId,
             @AuthenticationPrincipal UserDetails userDetails) {
-        checkMember(projectId, userDetails);
+        checkReadAccess(projectId, userDetails);
         return ApiResponse.ok(wbsService.getNodes(projectId));
     }
 
@@ -99,6 +99,9 @@ public class WbsController {
             @PathVariable Long templateId,
             @AuthenticationPrincipal UserDetails userDetails) {
         User caller = userRepository.findByEmail(userDetails.getUsername()).orElseThrow();
+        if (caller.getRole() == User.Role.IT_USER) {
+            throw new SecurityException("IT_User 僅有唯讀權限，無法套用模板");
+        }
         if (!projectService.isMember(projectId, caller.getId()) && caller.getRole() != User.Role.ADMIN) {
             throw new SecurityException("非專案成員無法套用模板");
         }
@@ -106,10 +109,22 @@ public class WbsController {
         return ApiResponse.ok(null);
     }
 
-    // ADMIN 角色可繞過成員檢查，直接操作任何專案的 WBS
+    // 讀取：ADMIN 和 IT_USER 可繞過成員檢查
+    private void checkReadAccess(Long projectId, UserDetails userDetails) {
+        User user = userRepository.findByEmail(userDetails.getUsername()).orElseThrow();
+        if (user.getRole() == User.Role.ADMIN || user.getRole() == User.Role.IT_USER) return;
+        if (!projectService.isMember(projectId, user.getId())) {
+            throw new SecurityException("您不是此專案成員");
+        }
+    }
+
+    // 寫入：僅 ADMIN 和專案成員；IT_USER 唯讀無法修改
     private void checkMember(Long projectId, UserDetails userDetails) {
         User user = userRepository.findByEmail(userDetails.getUsername()).orElseThrow();
         if (user.getRole() == User.Role.ADMIN) return;
+        if (user.getRole() == User.Role.IT_USER) {
+            throw new SecurityException("IT_User 僅有唯讀權限，無法修改 WBS");
+        }
         if (!projectService.isMember(projectId, user.getId())) {
             throw new SecurityException("您不是此專案成員");
         }

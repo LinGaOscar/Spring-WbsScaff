@@ -31,6 +31,9 @@ public class ProjectService {
             Department dept = departmentRepository.findById(req.getDepartmentId())
                 .orElseThrow(() -> new EntityNotFoundException("部門不存在"));
             p.setDepartment(dept);
+        } else if (creator.getDepartment() != null) {
+            // 自動繼承建立者所屬部門，確保部門隔離生效
+            p.setDepartment(creator.getDepartment());
         }
         Project saved = projectRepository.save(p);
         addMember(saved.getId(), creatorId, creatorId);
@@ -38,8 +41,17 @@ public class ProjectService {
     }
 
     @Transactional(readOnly = true)
-    public List<Project> listForUser(Long userId) {
-        return projectRepository.findByMemberOrOwner(userId);
+    public List<Project> listForUser(User user) {
+        // ADMIN / IT_USER 可查所有專案（跨部門稽核）
+        if (user.getRole() == User.Role.ADMIN || user.getRole() == User.Role.IT_USER) {
+            return projectRepository.findAll();
+        }
+        // 一般成員：有部門者僅可見同部門專案；無部門者依成員資格
+        if (user.getDepartment() != null) {
+            return projectRepository.findByMemberOrOwnerAndDepartment(
+                user.getId(), user.getDepartment().getId());
+        }
+        return projectRepository.findByMemberOrOwner(user.getId());
     }
 
     @Transactional

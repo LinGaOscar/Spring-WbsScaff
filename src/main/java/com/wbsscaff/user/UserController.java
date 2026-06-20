@@ -20,7 +20,7 @@ public class UserController {
     private final UserRepository userRepository;
 
     @GetMapping("/admin/users")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'IT_USER')")
     public String usersPage() {
         return "admin/users";
     }
@@ -37,7 +37,7 @@ public class UserController {
 
     @GetMapping("/api/users")
     @ResponseBody
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'IT_USER')")
     public ApiResponse<List<UserDto.Response>> listUsers() {
         return ApiResponse.ok(userService.listUsers().stream()
             .map(UserDto.Response::from).toList());

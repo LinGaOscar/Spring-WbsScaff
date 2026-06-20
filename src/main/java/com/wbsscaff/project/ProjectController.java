@@ -14,6 +14,7 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.Map;
+// Project 在同 package，無需額外 import
 
 @Controller
 @RequiredArgsConstructor
@@ -27,9 +28,21 @@ public class ProjectController {
     public String projectsPage() { return "project/list"; }
 
     @GetMapping("/projects/{id}")
-    public String projectDetailPage(@PathVariable Long id, Model model) {
-        // 將專案 ID 注入 model，讓 Thymeleaf 安全地輸出，避免 URI 字串解析風險
-        model.addAttribute("project", projectService.getById(id));
+    public String projectDetailPage(@PathVariable Long id, Model model,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        User user = userRepository.findByEmail(userDetails.getUsername()).orElseThrow();
+        Project project = projectService.getById(id);
+        // ADMIN / IT_USER 可查任何專案；一般使用者需是成員且同部門
+        if (user.getRole() != User.Role.ADMIN && user.getRole() != User.Role.IT_USER) {
+            if (!projectService.isMember(id, user.getId())) {
+                return "redirect:/projects";
+            }
+            if (user.getDepartment() != null && project.getDepartment() != null
+                    && !project.getDepartment().getId().equals(user.getDepartment().getId())) {
+                return "redirect:/projects";
+            }
+        }
+        model.addAttribute("project", project);
         return "project/detail";
     }
 
@@ -41,7 +54,7 @@ public class ProjectController {
         User user = userRepository.findByEmail(userDetails.getUsername())
             .orElseThrow(() -> new EntityNotFoundException("使用者不存在"));
         return ApiResponse.ok(
-            projectService.listForUser(user.getId())
+            projectService.listForUser(user)
                 .stream().map(ProjectDto.Response::from).toList());
     }
 

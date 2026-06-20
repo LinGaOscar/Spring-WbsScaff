@@ -38,5 +38,5 @@ public class User {
     @CreationTimestamp
     private LocalDateTime createdAt;
 
-    public enum Role { ADMIN, MEMBER }
+    public enum Role { ADMIN, IT_USER, MEMBER }
 }

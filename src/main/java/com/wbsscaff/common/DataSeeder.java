@@ -29,6 +29,7 @@ public class DataSeeder implements CommandLineRunner {
     public void run(String... args) {
         seedDepartments();
         seedAdminUser();
+        seedItUser();
         seedSystemTemplates();
         seedTestAccounts();
     }
@@ -53,6 +54,18 @@ public class DataSeeder implements CommandLineRunner {
         admin.setCanCreateProject(true);
         userRepository.save(admin);
         log.info("已建立初始 ADMIN：admin@wbsscaff.com / admin1234");
+    }
+
+    private void seedItUser() {
+        if (userRepository.findByEmail("it@system.com").isPresent()) return;
+        User it = new User();
+        it.setEmail("it@system.com");
+        it.setPasswordHash(passwordEncoder.encode("it1234"));
+        it.setDisplayName("IT稽核");
+        it.setRole(User.Role.IT_USER);
+        it.setCanCreateProject(false);
+        userRepository.save(it);
+        log.info("已建立 IT_USER：it@system.com / it1234");
     }
 
     private void seedSystemTemplates() {
