@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<body>
+<nav th:fragment="sidebar" class="sidebar">
+  <ul>
+    <li><a th:href="@{/projects}">專案列表</a></li>
+    <li><a th:href="@{/templates}">模板管理</a></li>
+    <li sec:authorize="hasRole('ADMIN')">
+      <a th:href="@{/admin/users}">使用者管理</a>
+    </li>
+  </ul>
+</nav>
+</body>
+</html>
