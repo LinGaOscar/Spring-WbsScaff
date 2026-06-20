@@ -3,6 +3,7 @@ package com.wbsscaff.wbs;
 import com.wbsscaff.department.Department;
 import com.wbsscaff.department.DepartmentRepository;
 import com.wbsscaff.project.Project;
+import com.wbsscaff.project.ProjectMemberRepository;
 import com.wbsscaff.project.ProjectRepository;
 import com.wbsscaff.user.User;
 import com.wbsscaff.user.UserRepository;
@@ -23,6 +24,7 @@ class WbsServiceTest {
     @Autowired WbsService wbsService;
     @Autowired WbsRepository wbsRepository;
     @Autowired ProjectRepository projectRepository;
+    @Autowired ProjectMemberRepository memberRepository;
     @Autowired UserRepository userRepository;
     @Autowired DepartmentRepository deptRepository;
     @Autowired PasswordEncoder passwordEncoder;
@@ -31,7 +33,9 @@ class WbsServiceTest {
 
     @BeforeEach
     void setup() {
+        // 須依 FK 順序清除：wbs_nodes → project_members → projects → users → departments
         wbsRepository.deleteAll();
+        memberRepository.deleteAll();
         projectRepository.deleteAll();
         userRepository.deleteAll();
         deptRepository.deleteAll();
