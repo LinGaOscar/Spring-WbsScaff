@@ -49,10 +49,10 @@ public class TemplateService {
 
         // 複製節點並保留父子關係（舊 ID → 新 ID 對映）
         Map<Long, Long> idMap = new HashMap<>();
-        List<WbsTemplateNode> srcNodes = nodeRepository.findByTemplateIdOrderBySortOrder(templateId);
+        List<WbsTemplateNode> srcNodes = nodeRepository.findByTemplate_IdOrderBySortOrder(templateId);
         for (WbsTemplateNode src : srcNodes) {
             WbsTemplateNode copy = new WbsTemplateNode();
-            copy.setTemplateId(clone.getId());
+            copy.setTemplate(clone);
             copy.setTitle(src.getTitle());
             copy.setSortOrder(src.getSortOrder());
             if (src.getParentId() != null) copy.setParentId(idMap.get(src.getParentId()));
@@ -68,7 +68,7 @@ public class TemplateService {
             .orElseThrow(() -> new EntityNotFoundException("模板不存在"));
         if (tpl.isSystem()) throw new IllegalArgumentException("系統模板不可刪除");
         if (!tpl.getOwner().getId().equals(userId)) throw new SecurityException("無權刪除此模板");
-        nodeRepository.deleteByTemplateId(templateId);
+        nodeRepository.deleteByTemplate_Id(templateId);
         templateRepository.delete(tpl);
     }
 
@@ -82,11 +82,35 @@ public class TemplateService {
         templateRepository.save(tpl);
     }
 
+    @Transactional(readOnly = true)
+    public TemplateDto.DetailResponse getWithNodes(Long id) {
+        WbsTemplate template = templateRepository.findById(id)
+            .orElseThrow(() -> new EntityNotFoundException("模板不存在"));
+        List<WbsTemplateNode> nodes = nodeRepository.findByTemplate_IdOrderBySortOrder(id);
+        return TemplateDto.DetailResponse.from(template, nodes);
+    }
+
+    @Transactional
+    public TemplateDto.Response updateTemplate(Long id, TemplateDto.UpdateRequest req, User caller) {
+        WbsTemplate template = templateRepository.findByIdAndOwner(id, caller)
+            .orElseThrow(() -> new EntityNotFoundException("模板不存在或無權限"));
+        if (template.isSystem()) throw new SecurityException("系統模板不可修改");
+        if (req.getName() != null) template.setName(req.getName());
+        if (req.getDescription() != null) template.setDescription(req.getDescription());
+        return TemplateDto.Response.from(templateRepository.save(template));
+    }
+
+    @Transactional
+    public TemplateDto.Response saveFromProject(Long projectId, String name, User caller) {
+        WbsTemplate tpl = saveProjectAsTemplate(projectId, caller.getId(), name);
+        return TemplateDto.Response.from(tpl);
+    }
+
     @Transactional
     public void applyToProject(Long templateId, Long projectId) {
         var project = projectRepository.findById(projectId)
             .orElseThrow(() -> new EntityNotFoundException("專案不存在"));
-        List<WbsTemplateNode> nodes = nodeRepository.findByTemplateIdOrderBySortOrder(templateId);
+        List<WbsTemplateNode> nodes = nodeRepository.findByTemplate_IdOrderBySortOrder(templateId);
         Map<Long, Long> idMap = new HashMap<>();
         for (WbsTemplateNode tNode : nodes) {
             WbsNode wNode = new WbsNode();
@@ -110,7 +134,7 @@ public class TemplateService {
         Map<Long, Long> idMap = new HashMap<>();
         for (var wNode : wbsNodes) {
             WbsTemplateNode tNode = new WbsTemplateNode();
-            tNode.setTemplateId(tpl.getId());
+            tNode.setTemplate(tpl);
             tNode.setTitle(wNode.getTitle());
             tNode.setSortOrder(wNode.getSortOrder());
             if (wNode.getParentId() != null) tNode.setParentId(idMap.get(wNode.getParentId()));
@@ -149,7 +173,7 @@ public class TemplateService {
     }
 
     public String exportJson(Long templateId) throws Exception {
-        List<WbsTemplateNode> nodes = nodeRepository.findByTemplateIdOrderBySortOrder(templateId);
+        List<WbsTemplateNode> nodes = nodeRepository.findByTemplate_IdOrderBySortOrder(templateId);
         List<TemplateDto.ExportNode> roots = buildExportTree(nodes, null);
         return objectMapper.writeValueAsString(roots);
     }

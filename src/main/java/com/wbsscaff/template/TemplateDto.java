@@ -48,4 +48,53 @@ public class TemplateDto {
         private String title;
         private List<ExportNode> children;
     }
+
+    // 與 TemplateResponse 相同結構，提供語意更明確的名稱給 updateTemplate/saveFromProject 使用
+    @Data
+    public static class Response {
+        private Long id;
+        private String name;
+        private String description;
+        private boolean isSystem;
+        private boolean isDefault;
+        private Long clonedFrom;
+
+        public static Response from(WbsTemplate t) {
+            Response r = new Response();
+            r.id = t.getId(); r.name = t.getName();
+            r.description = t.getDescription();
+            r.isSystem = t.isSystem(); r.isDefault = t.isDefault();
+            r.clonedFrom = t.getClonedFrom();
+            return r;
+        }
+    }
+
+    // 模板更新請求，欄位均為選填（null 代表不修改）
+    @Data
+    public static class UpdateRequest {
+        private String name;
+        private String description;
+    }
+
+    // 包含節點清單的完整模板回應，用於 GET /api/templates/{id}
+    @Data
+    public static class DetailResponse {
+        private Long id;
+        private String name;
+        private String description;
+        private boolean isSystem;
+        private boolean isDefault;
+        private Long clonedFrom;
+        private List<NodeResponse> nodes;
+
+        public static DetailResponse from(WbsTemplate t, List<WbsTemplateNode> nodeList) {
+            DetailResponse r = new DetailResponse();
+            r.id = t.getId(); r.name = t.getName();
+            r.description = t.getDescription();
+            r.isSystem = t.isSystem(); r.isDefault = t.isDefault();
+            r.clonedFrom = t.getClonedFrom();
+            r.nodes = nodeList.stream().map(NodeResponse::from).toList();
+            return r;
+        }
+    }
 }

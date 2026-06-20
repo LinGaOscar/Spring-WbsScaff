@@ -40,7 +40,7 @@ class TemplateServiceTest {
         templateRepository.save(systemTpl);
 
         WbsTemplateNode n = new WbsTemplateNode();
-        n.setTemplateId(systemTpl.getId()); n.setTitle("SIT 階段"); n.setSortOrder(0);
+        n.setTemplate(systemTpl); n.setTitle("SIT 階段"); n.setSortOrder(0);
         nodeRepository.save(n);
     }
 
@@ -49,7 +49,7 @@ class TemplateServiceTest {
         WbsTemplate clone = templateService.cloneSystem(systemTpl.getId(), user.getId());
         assertThat(clone.isSystem()).isFalse();
         assertThat(clone.getClonedFrom()).isEqualTo(systemTpl.getId());
-        long nodeCount = nodeRepository.findByTemplateIdOrderBySortOrder(clone.getId()).size();
+        long nodeCount = nodeRepository.findByTemplate_IdOrderBySortOrder(clone.getId()).size();
         assertThat(nodeCount).isEqualTo(1);
     }
 

@@ -129,7 +129,7 @@ public class DataSeeder implements CommandLineRunner {
             String title = row[0];
             String parentTitle = row[1];
             WbsTemplateNode node = new WbsTemplateNode();
-            node.setTemplateId(tpl.getId());
+            node.setTemplate(tpl);
             node.setTitle(title);
             if (parentTitle != null && titleMap.containsKey(parentTitle)) {
                 node.setParentId(titleMap.get(parentTitle).getId());

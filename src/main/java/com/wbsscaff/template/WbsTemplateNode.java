@@ -12,8 +12,10 @@ public class WbsTemplateNode {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "template_id", nullable = false)
-    private Long templateId;
+    // 使用 ManyToOne 關聯，避免裸 Long FK 導致無法做 JOIN 查詢
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "template_id", nullable = false)
+    private WbsTemplate template;
 
     @Column(name = "parent_id")
     private Long parentId;

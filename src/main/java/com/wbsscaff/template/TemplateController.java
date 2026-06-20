@@ -1,7 +1,9 @@
 package com.wbsscaff.template;
 
 import com.wbsscaff.common.ApiResponse;
+import com.wbsscaff.user.User;
 import com.wbsscaff.user.UserRepository;
+import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
@@ -54,6 +56,35 @@ public class TemplateController {
         var user = userRepository.findByEmail(userDetails.getUsername()).orElseThrow();
         templateService.setDefault(id, user.getId());
         return ApiResponse.ok(null);
+    }
+
+    @GetMapping("/api/templates/{id}")
+    @ResponseBody
+    public ApiResponse<TemplateDto.DetailResponse> getTemplate(@PathVariable Long id) {
+        return ApiResponse.ok(templateService.getWithNodes(id));
+    }
+
+    @PutMapping("/api/templates/{id}")
+    @ResponseBody
+    public ApiResponse<TemplateDto.Response> updateTemplate(
+            @PathVariable Long id,
+            @RequestBody TemplateDto.UpdateRequest req,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        User caller = userRepository.findByEmail(userDetails.getUsername())
+            .orElseThrow(() -> new EntityNotFoundException("使用者不存在"));
+        return ApiResponse.ok(templateService.updateTemplate(id, req, caller));
+    }
+
+    // 規格要求的路徑：從專案快照建立模板
+    @PostMapping("/api/templates/from-project/{projectId}")
+    @ResponseBody
+    public ApiResponse<TemplateDto.Response> saveFromProject(
+            @PathVariable Long projectId,
+            @RequestParam String name,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        User caller = userRepository.findByEmail(userDetails.getUsername())
+            .orElseThrow(() -> new EntityNotFoundException("使用者不存在"));
+        return ApiResponse.ok(templateService.saveFromProject(projectId, name, caller));
     }
 
     @GetMapping("/api/templates/{id}/export")

@@ -4,7 +4,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.List;
 
 public interface TemplateNodeRepository extends JpaRepository<WbsTemplateNode, Long> {
-    List<WbsTemplateNode> findByTemplateIdOrderBySortOrder(Long templateId);
+    // 透過 template.id 做 JOIN，Spring Data 以底線分隔巢狀屬性
+    List<WbsTemplateNode> findByTemplate_IdOrderBySortOrder(Long templateId);
     List<WbsTemplateNode> findByParentId(Long parentId);
-    void deleteByTemplateId(Long templateId);
+    void deleteByTemplate_Id(Long templateId);
 }

@@ -93,6 +93,19 @@ public class WbsController {
             templateService.saveProjectAsTemplate(projectId, user.getId(), body.get("name"))));
     }
 
+    // 規格要求的路徑：套用模板至指定專案（檢查成員或 ADMIN 權限）
+    @PostMapping("/api/projects/{projectId}/apply-template/{templateId}")
+    public ApiResponse<Void> applyTemplate(@PathVariable Long projectId,
+            @PathVariable Long templateId,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        User caller = userRepository.findByEmail(userDetails.getUsername()).orElseThrow();
+        if (!projectService.isMember(projectId, caller.getId()) && caller.getRole() != User.Role.ADMIN) {
+            throw new SecurityException("非專案成員無法套用模板");
+        }
+        templateService.applyToProject(templateId, projectId);
+        return ApiResponse.ok(null);
+    }
+
     // ADMIN 角色可繞過成員檢查，直接操作任何專案的 WBS
     private void checkMember(Long projectId, UserDetails userDetails) {
         User user = userRepository.findByEmail(userDetails.getUsername()).orElseThrow();
