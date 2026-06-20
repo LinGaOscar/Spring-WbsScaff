@@ -4,6 +4,7 @@ import com.wbsscaff.user.User;
 import com.wbsscaff.user.UserRepository;
 import com.wbsscaff.wbs.WbsDto;
 import com.wbsscaff.wbs.WbsService;
+import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.messaging.handler.annotation.*;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -96,6 +97,42 @@ public class CollabController {
         msg.setOperator(ui);
 
         broker.convertAndSend("/topic/project/" + projectId + "/nodes", msg);
+    }
+
+    /**
+     * 前端主動發送 JOIN（Finding 4）
+     * 前端 onConnect 後 publish 到 /app/project/{id}/join，讓後端廣播 presence
+     */
+    @MessageMapping("/project/{projectId}/join")
+    public void handleJoin(@DestinationVariable Long projectId, Principal principal) {
+        User user = userRepository.findByEmail(principal.getName())
+            .orElseThrow(() -> new EntityNotFoundException("使用者不存在"));
+        collabService.join(projectId, user.getId(), user.getDisplayName());
+        String color = collabService.getUserColor(user.getId());
+        PresenceMessage msg = new PresenceMessage();
+        msg.setType(PresenceMessage.Type.JOIN);
+        msg.setUserId(user.getId());
+        msg.setDisplayName(user.getDisplayName());
+        msg.setColor(color);
+        broker.convertAndSend("/topic/project/" + projectId + "/presence", msg);
+    }
+
+    /**
+     * 前端主動發送 LEAVE（Finding 4）
+     * beforeunload 時 publish 到 /app/project/{id}/leave 讓後端廣播離線
+     */
+    @MessageMapping("/project/{projectId}/leave")
+    public void handleLeave(@DestinationVariable Long projectId, Principal principal) {
+        User user = userRepository.findByEmail(principal.getName())
+            .orElseThrow(() -> new EntityNotFoundException("使用者不存在"));
+        collabService.leave(projectId, user.getId());
+        String color = collabService.getUserColor(user.getId());
+        PresenceMessage msg = new PresenceMessage();
+        msg.setType(PresenceMessage.Type.LEAVE);
+        msg.setUserId(user.getId());
+        msg.setDisplayName(user.getDisplayName());
+        msg.setColor(color);
+        broker.convertAndSend("/topic/project/" + projectId + "/presence", msg);
     }
 
     /** 接收游標位置，轉發給同一專案的協作者 */

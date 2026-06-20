@@ -196,6 +196,9 @@
           const sock = new SockJS('/ws');
           const client = new StompJs.Client({ webSocketFactory: () => sock });
           client.onConnect = () => {
+            // 連線後主動發送 JOIN，讓後端廣播 presence（Finding 4）
+            client.publish({ destination: `/app/project/${PROJECT_ID}/join`, body: '{}' });
+
             // 節點同步：接收其他人的節點變更
             client.subscribe(`/topic/project/${PROJECT_ID}/nodes`, msg => {
               const m = JSON.parse(msg.body);
@@ -241,9 +244,12 @@
           client.activate();
           stompClient.value = client;
 
-          // 頁面關閉時廣播 LEAVE（由 server disconnect event 處理，此為備援）
+          // 頁面關閉前主動發 LEAVE，確保後端即時更新 presence（Finding 4）
           window.addEventListener('beforeunload', () => {
-            if (client.connected) client.deactivate();
+            if (client.connected) {
+              client.publish({ destination: `/app/project/${PROJECT_ID}/leave`, body: '{}' });
+              client.deactivate();
+            }
           });
         }
 

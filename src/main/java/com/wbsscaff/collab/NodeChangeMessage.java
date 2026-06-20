@@ -1,7 +1,7 @@
 package com.wbsscaff.collab;
 
 import lombok.Data;
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 @Data
 public class NodeChangeMessage {
@@ -11,7 +11,8 @@ public class NodeChangeMessage {
     private Long nodeId;
     private Object payload;
     private UserInfo operator;
-    private LocalDateTime timestamp = LocalDateTime.now();
+    // 使用 Instant 確保 UTC 時區一致性，避免各節點時間不同步（Finding 2）
+    private Instant timestamp = Instant.now();
 
     @Data
     public static class UserInfo {
