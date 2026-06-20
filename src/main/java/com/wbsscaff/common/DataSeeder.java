@@ -30,6 +30,7 @@ public class DataSeeder implements CommandLineRunner {
         seedDepartments();
         seedAdminUser();
         seedSystemTemplates();
+        seedTestAccounts();
     }
 
     private void seedDepartments() {
@@ -114,6 +115,40 @@ public class DataSeeder implements CommandLineRunner {
             });
 
         log.info("已植入 2 個系統模板");
+    }
+
+    private void seedTestAccounts() {
+        if (userRepository.findByEmail("manager@aaa.com").isPresent()) return;
+
+        // 建立部門 AAA
+        Department aaa = new Department();
+        aaa.setName("AAA");
+        departmentRepository.save(aaa);
+
+        // 主管：設為部門 manager，可建立專案
+        User manager = createUser("manager@aaa.com", "manager1234", "陳主管", aaa, true);
+        aaa.setManager(manager);
+        departmentRepository.save(aaa);
+
+        // 專案 Leader：可建立專案
+        createUser("leader@aaa.com", "leader1234", "林Leader", aaa, true);
+
+        // 專案成員：不可建立專案
+        createUser("member@aaa.com", "member1234", "王小明", aaa, false);
+
+        log.info("已建立 AAA 部門測試帳號：manager / leader / member");
+    }
+
+    private User createUser(String email, String password, String displayName,
+                            Department dept, boolean canCreate) {
+        User u = new User();
+        u.setEmail(email);
+        u.setPasswordHash(passwordEncoder.encode(password));
+        u.setDisplayName(displayName);
+        u.setDepartment(dept);
+        u.setRole(User.Role.MEMBER);
+        u.setCanCreateProject(canCreate);
+        return userRepository.save(u);
     }
 
     private void createSystemTemplate(String name, String desc, String[][] nodeData) {
