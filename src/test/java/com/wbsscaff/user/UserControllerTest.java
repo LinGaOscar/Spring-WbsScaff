@@ -17,6 +17,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class UserControllerTest {
 
     @Autowired MockMvc mockMvc;
+    @Autowired UserRepository userRepository;
 
     @Test
     @WithMockUser(roles = "ADMIN")
@@ -31,5 +32,22 @@ class UserControllerTest {
     void listUsers_asMember_returns403() throws Exception {
         mockMvc.perform(get("/api/users"))
             .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @WithMockUser(username = "me@test.com", roles = "MEMBER")
+    void getCurrentUser_returns200() throws Exception {
+        // 建立測試使用者
+        User user = new User();
+        user.setEmail("me@test.com");
+        user.setPasswordHash("x");
+        user.setDisplayName("Me");
+        user.setRole(User.Role.MEMBER);
+        userRepository.save(user);
+
+        mockMvc.perform(get("/api/users/me"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.data.email").value("me@test.com"));
     }
 }

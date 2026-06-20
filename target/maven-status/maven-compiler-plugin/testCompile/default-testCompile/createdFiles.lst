@@ -1,0 +1,6 @@
+com/wbsscaff/user/UserServiceTest.class
+com/wbsscaff/auth/AuthControllerTest.class
+com/wbsscaff/auth/SecurityConfigTest.class
+com/wbsscaff/user/UserRepositoryTest.class
+com/wbsscaff/WbsScaffApplicationTests.class
+com/wbsscaff/user/UserControllerTest.class

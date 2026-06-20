@@ -1,0 +1,6 @@
+/Users/oscarlin/Documents/GitHub/Spring-WbsScaff/src/test/java/com/wbsscaff/WbsScaffApplicationTests.java
+/Users/oscarlin/Documents/GitHub/Spring-WbsScaff/src/test/java/com/wbsscaff/auth/AuthControllerTest.java
+/Users/oscarlin/Documents/GitHub/Spring-WbsScaff/src/test/java/com/wbsscaff/auth/SecurityConfigTest.java
+/Users/oscarlin/Documents/GitHub/Spring-WbsScaff/src/test/java/com/wbsscaff/user/UserControllerTest.java
+/Users/oscarlin/Documents/GitHub/Spring-WbsScaff/src/test/java/com/wbsscaff/user/UserRepositoryTest.java
+/Users/oscarlin/Documents/GitHub/Spring-WbsScaff/src/test/java/com/wbsscaff/user/UserServiceTest.java
