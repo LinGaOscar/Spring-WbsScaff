@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="zh-TW">
+<head>
+  <meta charset="UTF-8"><title>WBS 編輯器</title>
+  <link rel="stylesheet" th:href="@{/css/app.css}">
+  <link rel="stylesheet" th:href="@{/css/wbs.css}">
+</head>
+<body>
+  <div th:replace="~{fragments/header :: header}"></div>
+  <div class="layout">
+    <div th:replace="~{fragments/sidebar :: sidebar}"></div>
+    <main class="main-content" id="app">
+      <div class="wbs-toolbar">
+        <h2>{{ projectName }}</h2>
+        <div class="wbs-actions">
+          <button class="btn btn-sm" @click="addRoot">+ 新增根節點</button>
+          <button class="btn btn-sm" @click="exportCsv">匯出 CSV</button>
+          <button class="btn btn-sm" @click="exportXlsx">匯出 XLSX</button>
+        </div>
+      </div>
+      <div class="wbs-tree" v-if="roots.length">
+        <wbs-node v-for="n in roots" :key="n.id" :node="n"
+                  @add-child="addChild" @delete="deleteNode"
+                  @update="updateNode"></wbs-node>
+      </div>
+      <p v-else style="color:#636e72;margin-top:1rem">尚無節點，點擊「新增根節點」開始</p>
+    </main>
+  </div>
+  <div th:replace="~{fragments/footer :: footer}"></div>
+
+  <script th:src="@{/js/vue.global.prod.min.js}"></script>
+  <script th:src="@{/js/xlsx.min.js}"></script>
+  <script th:inline="javascript">
+    const CSRF_HEADER  = /*[[${_csrf.headerName}]]*/ 'X-CSRF-TOKEN';
+    const CSRF_TOKEN   = /*[[${_csrf.token}]]*/ '';
+    const PROJECT_ID   = /*[[${#request.requestURI.split('/')[2]}]]*/ 0;
+  </script>
+  <script>
+    const { createApp, ref, computed, onMounted, defineComponent } = Vue;
+    const STATUS_LABEL = { NOT_STARTED:'未開始', IN_PROGRESS:'進行中', DONE:'完成' };
+    const STATUS_CYCLE = { NOT_STARTED:'IN_PROGRESS', IN_PROGRESS:'DONE', DONE:'NOT_STARTED' };
+    const h = () => ({ 'Content-Type':'application/json', [CSRF_HEADER]:CSRF_TOKEN });
+    const api = (url, opt={}) => fetch(url, { headers: h(), ...opt }).then(r => r.json());
+
+    const WbsNodeComp = defineComponent({
+      name: 'wbs-node',
+      props: ['node'],
+      emits: ['add-child','delete','update'],
+      template: `
+        <div class="wbs-node-wrap">
+          <div class="wbs-node" :class="'status-'+node.status.toLowerCase()">
+            <span class="wbs-toggle" @click="node._open=!node._open">
+              {{ node.children?.length ? (node._open?'▼':'▶') : '　' }}
+            </span>
+            <span class="wbs-title" v-if="!node._editing"
+                  @dblclick="startEdit">{{ node.title }}</span>
+            <input class="wbs-title-input" v-else v-model="editTitle"
+                   @blur="commitEdit" @keyup.enter="commitEdit" @keyup.escape="node._editing=false"
+                   ref="titleInput" />
+            <span class="wbs-status-badge" @click="cycleStatus">
+              {{ STATUS_LABEL[node.status] }}
+            </span>
+            <span class="wbs-owner" v-if="node.owner">{{ node.owner }}</span>
+            <div class="wbs-node-actions">
+              <button @click="$emit('add-child', node)">+ 子</button>
+              <button @click="$emit('delete', node)">刪</button>
+            </div>
+          </div>
+          <div class="wbs-children" v-if="node._open && node.children?.length">
+            <wbs-node v-for="c in node.children" :key="c.id" :node="c"
+                      @add-child="$emit('add-child',$event)"
+                      @delete="$emit('delete',$event)"
+                      @update="$emit('update',$event)"></wbs-node>
+          </div>
+        </div>
+      `,
+      setup(props, { emit }) {
+        const editTitle = ref('');
+        const titleInput = ref(null);
+        function startEdit() {
+          editTitle.value = props.node.title;
+          props.node._editing = true;
+          setTimeout(() => titleInput.value?.focus(), 50);
+        }
+        function commitEdit() {
+          if (editTitle.value.trim() && editTitle.value !== props.node.title) {
+            emit('update', { node: props.node, changes: { title: editTitle.value.trim() } });
+          }
+          props.node._editing = false;
+        }
+        function cycleStatus() {
+          const next = STATUS_CYCLE[props.node.status];
+          emit('update', { node: props.node, changes: { status: next } });
+        }
+        return { editTitle, titleInput, startEdit, commitEdit, cycleStatus, STATUS_LABEL };
+      }
+    });
+
+    createApp({
+      components: { 'wbs-node': WbsNodeComp },
+      setup() {
+        const flatNodes = ref([]);
+        const projectName = ref('');
+
+        const roots = computed(() => buildTree(flatNodes.value));
+
+        function buildTree(nodes) {
+          const map = {};
+          nodes.forEach(n => map[n.id] = { ...n, children: [], _open: true, _editing: false });
+          const roots = [];
+          nodes.forEach(n => {
+            if (n.parentId) map[n.parentId]?.children.push(map[n.id]);
+            else roots.push(map[n.id]);
+          });
+          return roots;
+        }
+
+        async function load() {
+          const d = await api(`/api/projects/${PROJECT_ID}/nodes`);
+          if (d.success) flatNodes.value = d.data;
+          const pd = await api(`/api/projects/${PROJECT_ID}`);
+          if (pd.success) projectName.value = pd.data.name;
+        }
+
+        async function addRoot() {
+          const title = prompt('根節點名稱');
+          if (!title) return;
+          const d = await api(`/api/projects/${PROJECT_ID}/nodes`, {
+            method: 'POST', body: JSON.stringify({ title, sortOrder: flatNodes.value.length })
+          });
+          if (d.success) flatNodes.value.push(d.data);
+        }
+
+        async function addChild(parent) {
+          const title = prompt('子節點名稱');
+          if (!title) return;
+          const siblings = flatNodes.value.filter(n => n.parentId === parent.id);
+          const d = await api(`/api/projects/${PROJECT_ID}/nodes`, {
+            method: 'POST',
+            body: JSON.stringify({ title, parentId: parent.id, sortOrder: siblings.length })
+          });
+          if (d.success) flatNodes.value.push(d.data);
+        }
+
+        async function deleteNode(node) {
+          if (!confirm(`確定刪除「${node.title}」及其所有子節點？`)) return;
+          const d = await api(`/api/projects/${PROJECT_ID}/nodes/${node.id}`,
+            { method: 'DELETE' });
+          if (d.success) {
+            const removeIds = new Set(collectIds(node, flatNodes.value));
+            flatNodes.value = flatNodes.value.filter(n => !removeIds.has(n.id));
+          }
+        }
+
+        function collectIds(node, all) {
+          const ids = [node.id];
+          all.filter(n => n.parentId === node.id).forEach(c => ids.push(...collectIds(c, all)));
+          return ids;
+        }
+
+        async function updateNode({ node, changes }) {
+          const d = await api(`/api/projects/${PROJECT_ID}/nodes/${node.id}`, {
+            method: 'PUT', body: JSON.stringify(changes)
+          });
+          if (d.success) {
+            const idx = flatNodes.value.findIndex(n => n.id === node.id);
+            if (idx !== -1) flatNodes.value[idx] = { ...flatNodes.value[idx], ...d.data };
+          }
+        }
+
+        function exportCsv() {
+          const rows = [['編號','標題','負責人','開始日','結束日','狀態']];
+          flatNodes.value.forEach(n => rows.push([
+            n.id, n.title, n.owner||'', n.startDate||'', n.endDate||'',
+            STATUS_LABEL[n.status]
+          ]));
+          const csv = rows.map(r => r.map(v => `"${v}"`).join(',')).join('\n');
+          const blob = new Blob(['﻿'+csv], { type: 'text/csv;charset=utf-8' });
+          const a = document.createElement('a');
+          a.href = URL.createObjectURL(blob);
+          a.download = `wbs-${PROJECT_ID}.csv`; a.click();
+        }
+
+        function exportXlsx() {
+          const rows = [['編號','標題','負責人','開始日','結束日','狀態']];
+          flatNodes.value.forEach(n => rows.push([
+            n.id, n.title, n.owner||'', n.startDate||'', n.endDate||'',
+            STATUS_LABEL[n.status]
+          ]));
+          const ws = XLSX.utils.aoa_to_sheet(rows);
+          const wb = XLSX.utils.book_new();
+          XLSX.utils.book_append_sheet(wb, ws, 'WBS');
+          XLSX.writeFile(wb, `wbs-${PROJECT_ID}.xlsx`);
+        }
+
+        onMounted(load);
+        return { roots, projectName, addRoot, addChild, deleteNode, updateNode,
+                 exportCsv, exportXlsx };
+      }
+    }).mount('#app');
+  </script>
+</body>
+</html>

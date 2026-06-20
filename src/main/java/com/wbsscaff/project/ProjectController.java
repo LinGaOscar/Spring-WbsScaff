@@ -54,6 +54,13 @@ public class ProjectController {
             projectService.createProject(req, user.getId())));
     }
 
+    @GetMapping("/api/projects/{id}")
+    @ResponseBody
+    public ApiResponse<ProjectDto.Response> getProject(@PathVariable Long id) {
+        // 取得單一專案資訊，供 WBS 編輯器頁面顯示專案名稱
+        return ApiResponse.ok(ProjectDto.Response.from(projectService.getById(id)));
+    }
+
     @GetMapping("/api/projects/{id}/members")
     @ResponseBody
     public ApiResponse<List<ProjectDto.MemberResponse>> getMembers(@PathVariable Long id) {
