@@ -26,7 +26,7 @@ public class TemplateController {
     @ResponseBody
     public ApiResponse<TemplateDto.ListResponse> listTemplates(
             @AuthenticationPrincipal UserDetails userDetails) {
-        var user = userRepository.findByEmail(userDetails.getUsername()).orElseThrow();
+        User user = userRepository.findByEmail(userDetails.getUsername()).orElseThrow();
         return ApiResponse.ok(templateService.listAll(user.getId()));
     }
 
@@ -35,7 +35,7 @@ public class TemplateController {
     public ApiResponse<TemplateDto.TemplateResponse> cloneTemplate(
             @PathVariable Long templateId,
             @AuthenticationPrincipal UserDetails userDetails) {
-        var user = userRepository.findByEmail(userDetails.getUsername()).orElseThrow();
+        User user = userRepository.findByEmail(userDetails.getUsername()).orElseThrow();
         return ApiResponse.ok(TemplateDto.TemplateResponse.from(
             templateService.cloneSystem(templateId, user.getId())));
     }
@@ -44,7 +44,7 @@ public class TemplateController {
     @ResponseBody
     public ApiResponse<Void> deleteTemplate(@PathVariable Long id,
             @AuthenticationPrincipal UserDetails userDetails) {
-        var user = userRepository.findByEmail(userDetails.getUsername()).orElseThrow();
+        User user = userRepository.findByEmail(userDetails.getUsername()).orElseThrow();
         templateService.deleteCustom(id, user.getId());
         return ApiResponse.ok(null);
     }
@@ -53,7 +53,7 @@ public class TemplateController {
     @ResponseBody
     public ApiResponse<Void> setDefault(@PathVariable Long id,
             @AuthenticationPrincipal UserDetails userDetails) {
-        var user = userRepository.findByEmail(userDetails.getUsername()).orElseThrow();
+        User user = userRepository.findByEmail(userDetails.getUsername()).orElseThrow();
         templateService.setDefault(id, user.getId());
         return ApiResponse.ok(null);
     }

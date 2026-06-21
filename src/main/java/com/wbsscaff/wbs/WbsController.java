@@ -88,7 +88,7 @@ public class WbsController {
             @PathVariable Long projectId,
             @RequestBody Map<String, String> body,
             @AuthenticationPrincipal UserDetails userDetails) {
-        var user = userRepository.findByEmail(userDetails.getUsername()).orElseThrow();
+        User user = userRepository.findByEmail(userDetails.getUsername()).orElseThrow();
         return ApiResponse.ok(TemplateDto.TemplateResponse.from(
             templateService.saveProjectAsTemplate(projectId, user.getId(), body.get("name"))));
     }

@@ -1,6 +1,7 @@
 package com.wbsscaff.template;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.wbsscaff.project.Project;
 import com.wbsscaff.project.ProjectRepository;
 import com.wbsscaff.user.User;
 import com.wbsscaff.user.UserRepository;
@@ -108,7 +109,7 @@ public class TemplateService {
 
     @Transactional
     public void applyToProject(Long templateId, Long projectId) {
-        var project = projectRepository.findById(projectId)
+        Project project = projectRepository.findById(projectId)
             .orElseThrow(() -> new EntityNotFoundException("專案不存在"));
         List<WbsTemplateNode> nodes = nodeRepository.findByTemplate_IdOrderBySortOrder(templateId);
         Map<Long, Long> idMap = new HashMap<>();
@@ -132,7 +133,7 @@ public class TemplateService {
 
         List<WbsNode> wbsNodes = wbsRepository.findByProjectIdOrderBySortOrder(projectId);
         Map<Long, Long> idMap = new HashMap<>();
-        for (var wNode : wbsNodes) {
+        for (WbsNode wNode : wbsNodes) {
             WbsTemplateNode tNode = new WbsTemplateNode();
             tNode.setTemplate(tpl);
             tNode.setTitle(wNode.getTitle());
@@ -146,7 +147,7 @@ public class TemplateService {
 
     @Transactional
     public void importJson(String json, Long projectId) throws Exception {
-        var project = projectRepository.findById(projectId)
+        Project project = projectRepository.findById(projectId)
             .orElseThrow(() -> new EntityNotFoundException("專案不存在"));
         List<TemplateDto.ExportNode> roots = objectMapper.readValue(json,
             objectMapper.getTypeFactory().constructCollectionType(List.class,
@@ -159,7 +160,7 @@ public class TemplateService {
                              com.wbsscaff.project.Project project,
                              int baseOrder) {
         for (int i = 0; i < nodes.size(); i++) {
-            var src = nodes.get(i);
+            TemplateDto.ExportNode src = nodes.get(i);
             WbsNode node = new WbsNode();
             node.setProject(project);
             node.setTitle(src.getTitle());

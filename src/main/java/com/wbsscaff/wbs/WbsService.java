@@ -1,5 +1,6 @@
 package com.wbsscaff.wbs;
 
+import com.wbsscaff.project.Project;
 import com.wbsscaff.project.ProjectRepository;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
@@ -21,12 +22,19 @@ public class WbsService {
 
     @Transactional
     public WbsNode createNode(Long projectId, WbsDto.CreateRequest req) {
-        var project = projectRepository.findById(projectId)
+        Project project = projectRepository.findById(projectId)
             .orElseThrow(() -> new EntityNotFoundException("專案不存在"));
         WbsNode node = new WbsNode();
         node.setProject(project);
         node.setTitle(req.getTitle());
-        node.setParentId(req.getParentId());
+        if (req.getParentId() != null) {
+            WbsNode parent = wbsRepository.findById(req.getParentId())
+                .orElseThrow(() -> new EntityNotFoundException("父節點不存在"));
+            if (!parent.getProject().getId().equals(projectId)) {
+                throw new SecurityException("父節點不屬於此專案");
+            }
+            node.setParentId(req.getParentId());
+        }
         node.setSortOrder(req.getSortOrder() != null ? req.getSortOrder() : 0);
         return wbsRepository.save(node);
     }

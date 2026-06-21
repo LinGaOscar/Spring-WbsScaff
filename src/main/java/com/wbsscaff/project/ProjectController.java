@@ -14,7 +14,6 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.Map;
-// Project 在同 package，無需額外 import
 
 @Controller
 @RequiredArgsConstructor
@@ -74,16 +73,33 @@ public class ProjectController {
 
     @GetMapping("/api/projects/{id}")
     @ResponseBody
-    public ApiResponse<ProjectDto.Response> getProject(@PathVariable Long id) {
-        // 取得單一專案資訊，供 WBS 編輯器頁面顯示專案名稱
+    public ApiResponse<ProjectDto.Response> getProject(@PathVariable Long id,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        // 取得單一專案資訊，供 WBS 編輯器頁面顯示專案名稱；非成員或跨部門禁止存取
+        checkProjectReadAccess(id, userDetails);
         return ApiResponse.ok(ProjectDto.Response.from(projectService.getById(id)));
     }
 
     @GetMapping("/api/projects/{id}/members")
     @ResponseBody
-    public ApiResponse<List<ProjectDto.MemberResponse>> getMembers(@PathVariable Long id) {
+    public ApiResponse<List<ProjectDto.MemberResponse>> getMembers(@PathVariable Long id,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        checkProjectReadAccess(id, userDetails);
         return ApiResponse.ok(memberRepository.findByIdProjectId(id)
             .stream().map(ProjectDto.MemberResponse::from).toList());
+    }
+
+    private void checkProjectReadAccess(Long id, UserDetails userDetails) {
+        User user = userRepository.findByEmail(userDetails.getUsername()).orElseThrow();
+        if (user.getRole() == User.Role.ADMIN || user.getRole() == User.Role.IT_USER) return;
+        if (!projectService.isMember(id, user.getId())) {
+            throw new SecurityException("您不是此專案成員");
+        }
+        Project project = projectService.getById(id);
+        if (user.getDepartment() != null && project.getDepartment() != null
+                && !project.getDepartment().getId().equals(user.getDepartment().getId())) {
+            throw new SecurityException("跨部門存取被拒絕");
+        }
     }
 
     @PostMapping("/api/projects/{id}/members")

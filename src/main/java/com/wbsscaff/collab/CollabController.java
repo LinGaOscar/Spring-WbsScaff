@@ -1,5 +1,6 @@
 package com.wbsscaff.collab;
 
+import com.wbsscaff.project.ProjectService;
 import com.wbsscaff.user.User;
 import com.wbsscaff.user.UserRepository;
 import com.wbsscaff.wbs.WbsDto;
@@ -22,6 +23,18 @@ public class CollabController {
     private final CollabService collabService;
     private final WbsService wbsService;
     private final UserRepository userRepository;
+    private final ProjectService projectService;
+
+    // 寫入操作：IT_USER 唯讀，非成員禁止
+    private void checkWriteAccess(Long projectId, User user) {
+        if (user.getRole() == User.Role.IT_USER) {
+            throw new SecurityException("IT_User 僅有唯讀權限");
+        }
+        if (user.getRole() != User.Role.ADMIN
+                && !projectService.isMember(projectId, user.getId())) {
+            throw new SecurityException("您不是此專案成員");
+        }
+    }
 
     /** 用戶訂閱 presence 頻道時，登記 JOIN 並廣播給其他人，同時回傳當前在線列表 */
     @SubscribeMapping("/project/{projectId}/presence")
@@ -47,6 +60,7 @@ public class CollabController {
             @Header("nodeId") Long nodeId,
             Principal principal) {
         User user = userRepository.findByEmail(principal.getName()).orElseThrow();
+        checkWriteAccess(projectId, user);
         WbsDto.Response updated = WbsDto.Response.from(wbsService.updateNode(projectId, nodeId, req));
 
         NodeChangeMessage msg = new NodeChangeMessage();
@@ -67,6 +81,7 @@ public class CollabController {
     public void onNodeCreate(@DestinationVariable Long projectId,
             @Payload WbsDto.CreateRequest req, Principal principal) {
         User user = userRepository.findByEmail(principal.getName()).orElseThrow();
+        checkWriteAccess(projectId, user);
         WbsDto.Response created = WbsDto.Response.from(wbsService.createNode(projectId, req));
 
         NodeChangeMessage msg = new NodeChangeMessage();
@@ -86,6 +101,7 @@ public class CollabController {
     public void onNodeDelete(@DestinationVariable Long projectId,
             @Header("nodeId") Long nodeId, Principal principal) {
         User user = userRepository.findByEmail(principal.getName()).orElseThrow();
+        checkWriteAccess(projectId, user);
         wbsService.deleteNode(projectId, nodeId);
 
         NodeChangeMessage msg = new NodeChangeMessage();
