@@ -8,6 +8,8 @@ import com.wbsscaff.template.WbsTemplate;
 import com.wbsscaff.template.WbsTemplateNode;
 import com.wbsscaff.user.User;
 import com.wbsscaff.user.UserRepository;
+import com.wbsscaff.wbs.WbsQuickItem;
+import com.wbsscaff.wbs.WbsQuickItemRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;
@@ -24,6 +26,7 @@ public class DataSeeder implements CommandLineRunner {
     private final PasswordEncoder passwordEncoder;
     private final TemplateRepository templateRepository;
     private final TemplateNodeRepository templateNodeRepository;
+    private final WbsQuickItemRepository quickItemRepository;
 
     @Override
     public void run(String... args) {
@@ -32,6 +35,7 @@ public class DataSeeder implements CommandLineRunner {
         seedItUser();
         seedSystemTemplates();
         seedTestAccounts();
+        seedQuickItems();
     }
 
     private void seedDepartments() {
@@ -187,6 +191,15 @@ public class DataSeeder implements CommandLineRunner {
             sortCounters.put(parentTitle + "|", order + 1);
             templateNodeRepository.save(node);
             titleMap.put(title, node);
+        }
+    }
+
+    private void seedQuickItems() {
+        if (quickItemRepository.count() > 0) return;
+        String[] titles = { "開防火牆", "申請環境", "部署申請", "系統測試", "使用者驗收", "正式上線", "文件更新", "會議記錄" };
+        for (int i = 0; i < titles.length; i++) {
+            quickItemRepository.save(WbsQuickItem.builder()
+                .title(titles[i]).category("常用").sortOrder(i).build());
         }
     }
 }

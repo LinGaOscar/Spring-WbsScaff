@@ -9,6 +9,9 @@
     <li sec:authorize="hasRole('ADMIN')">
       <a th:href="@{/admin/users}">使用者管理</a>
     </li>
+    <li sec:authorize="hasRole('ADMIN')">
+      <a th:href="@{/admin/quick-items}">快速子項管理</a>
+    </li>
   </ul>
 </nav>
 </body>

@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <title>快速子項管理</title>
+  <link rel="stylesheet" th:href="@{/css/app.css}">
+</head>
+<body>
+  <div th:replace="~{fragments/header :: header}"></div>
+  <div class="layout">
+    <div th:replace="~{fragments/sidebar :: sidebar}"></div>
+    <main class="main-content" id="app">
+      <div class="page-header">
+        <h2>快速子項管理</h2>
+      </div>
+      <div v-if="error" class="alert alert-error">{{ error }}</div>
+
+      <!-- 新增表單 -->
+      <div style="background:#fff;border-radius:8px;padding:1.25rem;margin-bottom:1.5rem;box-shadow:0 1px 4px rgba(0,0,0,0.08)">
+        <h3 style="margin-bottom:1rem;font-size:1rem">新增快速子項</h3>
+        <div style="display:flex;gap:0.75rem;align-items:flex-end">
+          <div class="form-group" style="flex:1;margin-bottom:0">
+            <label>名稱</label>
+            <input type="text" v-model="newTitle" placeholder="例：開防火牆" @keyup.enter="create" />
+          </div>
+          <div class="form-group" style="width:140px;margin-bottom:0">
+            <label>分類（選填）</label>
+            <input type="text" v-model="newCategory" placeholder="常用" />
+          </div>
+          <button class="btn btn-primary" style="width:auto;margin-top:0" @click="create">新增</button>
+        </div>
+      </div>
+
+      <!-- 清單 -->
+      <table class="data-table" v-if="items.length">
+        <thead>
+          <tr><th>名稱</th><th>分類</th><th>排序</th><th>操作</th></tr>
+        </thead>
+        <tbody>
+          <tr v-for="item in items" :key="item.id">
+            <td>{{ item.title }}</td>
+            <td>{{ item.category || '-' }}</td>
+            <td>{{ item.sortOrder }}</td>
+            <td>
+              <button class="btn btn-sm btn-danger" @click="remove(item.id)">刪除</button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <p v-else style="color:#636e72">尚無快速子項，請新增。</p>
+    </main>
+  </div>
+  <div th:replace="~{fragments/footer :: footer}"></div>
+
+  <script th:src="@{/js/vue.global.prod.min.js}"></script>
+  <script th:inline="javascript">
+    const CSRF_HEADER = /*[[${_csrf.headerName}]]*/ 'X-CSRF-TOKEN';
+    const CSRF_TOKEN  = /*[[${_csrf.token}]]*/ '';
+  </script>
+  <script>
+    const { createApp, ref, onMounted } = Vue;
+    const h   = () => ({ 'Content-Type':'application/json', [CSRF_HEADER]:CSRF_TOKEN });
+    const api = (url, opt={}) => fetch(url, { headers: h(), ...opt }).then(r => r.json());
+
+    createApp({
+      setup() {
+        const items       = ref([]);
+        const newTitle    = ref('');
+        const newCategory = ref('');
+        const error       = ref('');
+
+        async function load() {
+          const d = await api('/api/quick-items');
+          if (d.success) items.value = d.data;
+        }
+
+        async function create() {
+          if (!newTitle.value.trim()) return;
+          const d = await api('/api/quick-items', {
+            method: 'POST',
+            body: JSON.stringify({
+              title: newTitle.value.trim(),
+              category: newCategory.value.trim() || '常用',
+              sortOrder: items.value.length
+            })
+          });
+          if (d.success) {
+            newTitle.value = '';
+            newCategory.value = '';
+            load();
+          } else {
+            error.value = d.message || '新增失敗';
+          }
+        }
+
+        async function remove(id) {
+          if (!confirm('確定刪除？')) return;
+          await api(`/api/quick-items/${id}`, { method: 'DELETE' });
+          load();
+        }
+
+        onMounted(load);
+        return { items, newTitle, newCategory, error, create, remove };
+      }
+    }).mount('#app');
+  </script>
+</body>
+</html>

@@ -16,3 +16,44 @@
 .wbs-node:hover .wbs-node-actions { opacity:1; }
 .wbs-node-actions button { font-size:0.75rem; padding:2px 6px; border:1px solid #b2bec3; border-radius:3px; cursor:pointer; background:#fff; }
 .wbs-children { margin-left:1.5rem; border-left:2px solid #f0f0f0; padding-left:0.5rem; }
+.wbs-node.drag-over { border-color:#0984e3; background:#e8f4fd; box-shadow:0 0 0 2px rgba(9,132,227,0.25); }
+
+/* 行動版封鎖：覆蓋整個頁面 */
+.mobile-block { display:none; position:fixed; inset:0; background:#f5f6fa; z-index:9999; flex-direction:column; justify-content:center; align-items:center; text-align:center; padding:2rem; }
+@media (max-width:991px) { .mobile-block { display:flex; } }
+
+/* 編輯器整體 flex 容器（快速面板 + 主區）*/
+.wbs-editor-wrap { display:flex; flex:1; min-width:0; overflow:hidden; }
+
+/* 快速子項面板 */
+.quick-panel { width:168px; min-width:168px; background:#fff; border-right:1px solid #dfe6e9; display:flex; flex-direction:column; flex-shrink:0; transition:width 0.2s,min-width 0.2s; position:relative; }
+.quick-panel.collapsed { width:28px; min-width:28px; }
+.panel-toggle-btn { position:absolute; top:50%; right:-1px; transform:translateY(-50%); width:20px; height:48px; border:1px solid #dfe6e9; border-left:none; border-radius:0 4px 4px 0; background:#fff; cursor:pointer; font-size:0.7rem; color:#636e72; padding:0; z-index:1; display:flex; align-items:center; justify-content:center; }
+.panel-toggle-btn:hover { background:#f5f6fa; color:#0984e3; }
+.panel-body { padding:0.75rem 0.5rem; overflow-y:auto; flex:1; }
+.panel-title { font-size:0.75rem; font-weight:600; color:#636e72; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:0.5rem; padding:0 0.25rem; }
+.quick-item { display:flex; align-items:center; gap:0.3rem; padding:0.4rem 0.5rem; margin-bottom:4px; background:#f8f9fa; border:1px solid #e9ecef; border-radius:4px; font-size:0.82rem; cursor:grab; user-select:none; transition:background 0.1s; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.quick-item:hover { background:#e8f4fd; border-color:#b2d8f5; }
+.quick-item:active { cursor:grabbing; }
+.quick-item-icon { color:#0984e3; font-size:0.85rem; flex-shrink:0; }
+.panel-empty { font-size:0.8rem; color:#b2bec3; text-align:center; padding:0.5rem; }
+.panel-hint { font-size:0.72rem; color:#b2bec3; line-height:1.4; margin-top:0.75rem; padding:0 0.25rem; }
+
+/* 主編輯區 */
+.wbs-main { flex:1; padding:2rem; overflow-y:auto; min-width:0; overflow-x:auto; }
+.wbs-node { min-width:600px; }
+
+/* WBS 樹 drop zone 高亮 */
+.wbs-tree.drag-over,.wbs-empty-drop.drag-over { outline:2px dashed #0984e3; outline-offset:4px; background:rgba(9,132,227,0.03); border-radius:6px; }
+.wbs-empty-drop { padding:2rem; text-align:center; color:#636e72; border-radius:6px; min-height:80px; display:flex; align-items:center; justify-content:center; }
+
+/* 鎖定按鈕 */
+.btn-locked { background:#fdcb6e; border-color:#e17055; color:#2d3436; }
+.btn-editing { background:#55efc4; border-color:#00b894; color:#2d3436; }
+.wbs-node input[readonly] { opacity:0.55; cursor:default; background:#f8f9fa; }
+
+/* 模板選擇選項 */
+.template-option { padding:0.75rem 1rem; border:1px solid #f0f0f0; border-radius:6px; margin-bottom:0.5rem; cursor:pointer; transition:background 0.1s; }
+.template-option:hover { background:#e8f4fd; border-color:#b2d8f5; }
+.template-option-name { font-weight:600; font-size:0.95rem; }
+.template-option-desc { font-size:0.82rem; color:#636e72; margin-top:0.2rem; }

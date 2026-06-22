@@ -1,4 +1,4 @@
-    const { createApp, ref, computed, onMounted, defineComponent } = Vue;
+    const { createApp, ref, computed, onMounted, defineComponent, provide, inject } = Vue;
     const STATUS_LABEL = { NOT_STARTED:'未開始', IN_PROGRESS:'進行中', DONE:'完成' };
     const STATUS_CYCLE = { NOT_STARTED:'IN_PROGRESS', IN_PROGRESS:'DONE', DONE:'NOT_STARTED' };
     const h = () => ({ 'Content-Type':'application/json', [CSRF_HEADER]:CSRF_TOKEN });
@@ -7,36 +7,41 @@
     const WbsNodeComp = defineComponent({
       name: 'wbs-node',
       props: ['node', 'cursors'],
-      emits: ['add-child','delete','update','cursor-move'],
+      emits: ['add-child','delete','update','cursor-move','drop-item'],
       template: `
         <div class="wbs-node-wrap">
-          <div class="wbs-node" :class="'status-'+node.status.toLowerCase()"
-               @mouseenter="onMouseEnter(node.id)" @mouseleave="onMouseLeave()">
+          <div class="wbs-node" :class="['status-'+node.status.toLowerCase(), {'drag-over': isDragOver}]"
+               @mouseenter="onMouseEnter(node.id)" @mouseleave="onMouseLeave()"
+               @dragover.prevent="isDragOver=!locked.value"
+               @dragleave="isDragOver=false"
+               @drop.stop="onNodeDrop($event)">
             <span class="wbs-toggle" @click="node._open=!node._open">
               {{ node.children?.length ? (node._open?'▼':'▶') : '　' }}
             </span>
             <span class="wbs-title" v-if="!node._editing"
-                  @dblclick="startEdit">{{ node.title }}</span>
+                  @dblclick="!locked.value && startEdit()">{{ node.title }}</span>
             <input class="wbs-title-input" v-else v-model="editTitle"
                    @blur="commitEdit" @keyup.enter="commitEdit" @keyup.escape="node._editing=false"
                    ref="titleInput" />
-            <span class="wbs-status-badge" @click="cycleStatus">
+            <span class="wbs-status-badge" @click="!locked.value && cycleStatus()">
               {{ STATUS_LABEL[node.status] }}
             </span>
-            <!-- 負責人、開始日、結束日、備註：直接可編輯，失焦後呼叫 PUT 儲存 -->
             <input class="wbs-field-input" type="text" v-model="editOwner"
-                   placeholder="負責人" @blur="commitField('owner', editOwner)" />
+                   placeholder="負責人" :readonly="locked.value"
+                   @blur="!locked.value && commitField('owner', editOwner)" />
             <input class="wbs-field-input" type="date" v-model="editStartDate"
-                   @blur="commitField('startDate', editStartDate)" />
+                   :readonly="locked.value"
+                   @blur="!locked.value && commitField('startDate', editStartDate)" />
             <input class="wbs-field-input" type="date" v-model="editEndDate"
-                   @blur="commitField('endDate', editEndDate)" />
+                   :readonly="locked.value"
+                   @blur="!locked.value && commitField('endDate', editEndDate)" />
             <input class="wbs-field-input" type="text" v-model="editNotes"
-                   placeholder="備註" @blur="commitField('notes', editNotes)" />
-            <div class="wbs-node-actions">
+                   placeholder="備註" :readonly="locked.value"
+                   @blur="!locked.value && commitField('notes', editNotes)" />
+            <div class="wbs-node-actions" v-if="!locked.value">
               <button @click="$emit('add-child', node)">+ 子</button>
               <button @click="$emit('delete', node)">刪</button>
             </div>
-            <!-- 顯示正在操作此節點的協作者游標指示點 -->
             <div class="cursor-indicators">
               <span v-for="c in nodeCursors(node.id)" :key="c.userId"
                     class="cursor-dot" :style="{background:c.color}"
@@ -49,18 +54,22 @@
                       @add-child="$emit('add-child',$event)"
                       @delete="$emit('delete',$event)"
                       @update="$emit('update',$event)"
-                      @cursor-move="$emit('cursor-move',$event)"></wbs-node>
+                      @cursor-move="$emit('cursor-move',$event)"
+                      @drop-item="$emit('drop-item',$event)"></wbs-node>
           </div>
         </div>
       `,
       setup(props, { emit }) {
-        const editTitle = ref('');
-        const titleInput = ref(null);
-        // 其他欄位的可編輯 ref，初始值從節點資料取得
+        // 從 app 層取得鎖定狀態（provide/inject）
+        const locked = inject('locked', ref(false));
+
+        const editTitle     = ref('');
+        const titleInput    = ref(null);
         const editOwner     = ref(props.node.owner     || '');
         const editStartDate = ref(props.node.startDate || '');
         const editEndDate   = ref(props.node.endDate   || '');
         const editNotes     = ref(props.node.notes     || '');
+        const isDragOver    = ref(false);
 
         function startEdit() {
           editTitle.value = props.node.title;
@@ -79,7 +88,6 @@
           const next = STATUS_CYCLE[props.node.status];
           emit('update', { node: props.node, changes: { status: next } });
         }
-        // 通用欄位失焦儲存：只有值改變才送 PUT
         function commitField(field, value) {
           if (value !== (props.node[field] || '')) {
             emit('update', { node: props.node, changes: { [field]: value || null } });
@@ -91,43 +99,58 @@
         function onMouseLeave() {
           emit('cursor-move', { hoveringNodeId: null, editingNodeId: null });
         }
-        // 取得正在操作此節點的協作者游標列表
         function nodeCursors(nodeId) {
           if (!props.cursors) return [];
           return Object.values(props.cursors).filter(
             c => c.hoveringNodeId === nodeId || c.editingNodeId === nodeId
           );
         }
+        // 快速子項拖曳到此節點：新增為子節點
+        function onNodeDrop(event) {
+          isDragOver.value = false;
+          if (locked.value) return;
+          const title = event.dataTransfer.getData('text/plain');
+          if (!title) return;
+          emit('drop-item', { parentId: props.node.id, title });
+        }
+
         return { editTitle, titleInput, editOwner, editStartDate, editEndDate, editNotes,
+                 isDragOver, locked,
                  startEdit, commitEdit, cycleStatus, commitField,
-                 onMouseEnter, onMouseLeave, nodeCursors, STATUS_LABEL };
+                 onMouseEnter, onMouseLeave, nodeCursors, onNodeDrop, STATUS_LABEL };
       }
     });
 
     createApp({
       components: { 'wbs-node': WbsNodeComp },
       setup() {
-        const flatNodes = ref([]);
-        const projectName = ref('');
-        const showTemplateModal = ref(false);
+        const flatNodes    = ref([]);
+        const projectName  = ref('');
+        const quickItems   = ref([]);
+        const panelCollapsed   = ref(false);
+        const locked       = ref(false);
+        const treeHighlight    = ref(false);
+        const showTemplateModal    = ref(false);
+        const availableTemplates   = ref([]);
+        const onlineUsers  = ref([]);
+        const cursors      = ref({});
+        const stompClient  = ref(null);
 
-        // 即時協作狀態
-        const onlineUsers = ref([]);
-        const cursors = ref({});       // userId -> CursorMessage
-        const stompClient = ref(null);
+        // 提供鎖定狀態給所有子節點
+        provide('locked', locked);
 
-        const roots = computed(() => buildTree(flatNodes.value));
+        const roots    = computed(() => buildTree(flatNodes.value));
         const hasNodes = computed(() => flatNodes.value.length > 0);
 
         function buildTree(nodes) {
           const map = {};
           nodes.forEach(n => map[n.id] = { ...n, children: [], _open: true, _editing: false });
-          const roots = [];
+          const result = [];
           nodes.forEach(n => {
             if (n.parentId) map[n.parentId]?.children.push(map[n.id]);
-            else roots.push(map[n.id]);
+            else result.push(map[n.id]);
           });
-          return roots;
+          return result;
         }
 
         async function load() {
@@ -137,15 +160,50 @@
           if (pd.success) projectName.value = pd.data.name;
         }
 
-        // 建立 STOMP 連線並訂閱三個頻道
+        async function loadQuickItems() {
+          const d = await api('/api/quick-items');
+          if (d.success) quickItems.value = d.data;
+        }
+
+        async function loadTemplates() {
+          const d = await api('/api/templates');
+          if (d.success) availableTemplates.value = d.data;
+        }
+
+        // 拖曳開始：把 item title 寫入 dataTransfer
+        function onDragStart(event, title) {
+          event.dataTransfer.setData('text/plain', title);
+          event.dataTransfer.effectAllowed = 'copy';
+        }
+
+        // 拖曳至 WBS 背景：新增為根節點
+        function onDropToRoot(event) {
+          treeHighlight.value = false;
+          if (locked.value) return;
+          const title = event.dataTransfer.getData('text/plain');
+          if (!title || !stompClient.value?.connected) return;
+          stompClient.value.publish({
+            destination: `/app/project/${PROJECT_ID}/node/create`,
+            body: JSON.stringify({ title, sortOrder: flatNodes.value.length })
+          });
+        }
+
+        // 拖曳至某節點：新增為該節點的子節點
+        function handleDropItem({ parentId, title }) {
+          if (locked.value || !stompClient.value?.connected) return;
+          const siblings = flatNodes.value.filter(n => n.parentId === parentId);
+          stompClient.value.publish({
+            destination: `/app/project/${PROJECT_ID}/node/create`,
+            body: JSON.stringify({ title, parentId, sortOrder: siblings.length })
+          });
+        }
+
         function connectWs() {
-          const sock = new SockJS('/ws');
+          const sock   = new SockJS('/ws');
           const client = new StompJs.Client({ webSocketFactory: () => sock });
           client.onConnect = () => {
-            // 連線後主動發送 JOIN，讓後端廣播 presence（Finding 4）
             client.publish({ destination: `/app/project/${PROJECT_ID}/join`, body: '{}' });
 
-            // 節點同步：接收其他人的節點變更
             client.subscribe(`/topic/project/${PROJECT_ID}/nodes`, msg => {
               const m = JSON.parse(msg.body);
               if (m.type === 'NODE_UPDATE') {
@@ -160,18 +218,15 @@
               }
             });
 
-            // 游標同步：顯示其他人的游標位置
             client.subscribe(`/topic/project/${PROJECT_ID}/cursors`, msg => {
               const c = JSON.parse(msg.body);
               cursors.value = { ...cursors.value, [c.userId]: c };
             });
 
-            // 訂閱 presence：取得當前在線列表（SubscribeMapping 回傳）
             client.subscribe(`/app/project/${PROJECT_ID}/presence`, msg => {
               onlineUsers.value = JSON.parse(msg.body);
             });
 
-            // 訂閱 topic presence：即時感知用戶加入／離開
             client.subscribe(`/topic/project/${PROJECT_ID}/presence`, msg => {
               const p = JSON.parse(msg.body);
               if (p.type === 'JOIN') {
@@ -180,7 +235,6 @@
                 }
               } else {
                 onlineUsers.value = onlineUsers.value.filter(u => u.userId !== p.userId);
-                // 清除離線用戶的游標
                 const nc = { ...cursors.value };
                 delete nc[p.userId];
                 cursors.value = nc;
@@ -190,7 +244,6 @@
           client.activate();
           stompClient.value = client;
 
-          // 頁面關閉前主動發 LEAVE，確保後端即時更新 presence（Finding 4）
           window.addEventListener('beforeunload', () => {
             if (client.connected) {
               client.publish({ destination: `/app/project/${PROJECT_ID}/leave`, body: '{}' });
@@ -199,7 +252,6 @@
           });
         }
 
-        // 發送游標位置給 CollabController
         function sendCursor(cursorData) {
           if (!stompClient.value?.connected) return;
           stompClient.value.publish({
@@ -208,7 +260,6 @@
           });
         }
 
-        // 以下 CRUD 改為透過 STOMP 送出，由 CollabController 持久化並廣播給所有人
         async function addRoot() {
           const title = prompt('根節點名稱');
           if (!title) return;
@@ -246,21 +297,22 @@
 
         function exportCsv() {
           const header = ['編號','標題','負責人','開始日','結束日','狀態'];
-          const rows = [header];
+          const rows   = [header];
           flatNodes.value.forEach(n => rows.push([
             n.id, n.title, n.owner||'', n.startDate||'', n.endDate||'',
             STATUS_LABEL[n.status]
           ]));
-          const csv = rows.map(r => r.map(v => `"${v}"`).join(',')).join('\n');
+          const csv  = rows.map(r => r.map(v => `"${v}"`).join(',')).join('\n');
           const blob = new Blob(['﻿'+csv], { type: 'text/csv;charset=utf-8' });
-          const a = document.createElement('a');
-          a.href = URL.createObjectURL(blob);
-          a.download = `wbs-${PROJECT_ID}.csv`; a.click();
+          const a    = document.createElement('a');
+          a.href     = URL.createObjectURL(blob);
+          a.download = `wbs-${PROJECT_ID}.csv`;
+          a.click();
         }
 
         function exportXlsx() {
           const header = ['編號','標題','負責人','開始日','結束日','狀態'];
-          const rows = [header];
+          const rows   = [header];
           flatNodes.value.forEach(n => rows.push([
             n.id, n.title, n.owner||'', n.startDate||'', n.endDate||'',
             STATUS_LABEL[n.status]
@@ -290,12 +342,19 @@
 
         onMounted(() => {
           load();
+          loadQuickItems();
+          loadTemplates();
           connectWs();
         });
 
-        return { roots, projectName, addRoot, addChild, deleteNode, updateNode,
-                 exportCsv, exportXlsx, hasNodes, showTemplateModal,
-                 applyTemplate, saveAsTemplate,
-                 onlineUsers, cursors, sendCursor };
+        return {
+          roots, projectName, quickItems, panelCollapsed, locked, treeHighlight,
+          showTemplateModal, availableTemplates,
+          addRoot, addChild, deleteNode, updateNode,
+          exportCsv, exportXlsx, hasNodes,
+          applyTemplate, saveAsTemplate,
+          onlineUsers, cursors, sendCursor,
+          onDragStart, onDropToRoot, handleDropItem
+        };
       }
     }).mount('#app');

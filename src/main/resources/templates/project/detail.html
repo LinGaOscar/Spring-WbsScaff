@@ -9,45 +9,118 @@
 </head>
 <body>
   <div th:replace="~{fragments/header :: header}"></div>
+
+  <!-- 行動版封鎖：純 CSS，螢幕寬 < 992px 自動顯示 -->
+  <div class="mobile-block">
+    <div style="font-size:3rem;margin-bottom:1rem">🖥️</div>
+    <h2 style="margin-bottom:0.5rem">請使用桌面瀏覽器</h2>
+    <p style="color:#636e72;max-width:320px">WBS 編輯器需要較大的螢幕空間，請在電腦上開啟此頁面。</p>
+  </div>
+
   <div class="layout">
     <div th:replace="~{fragments/sidebar :: sidebar}"></div>
-    <main class="main-content" id="app">
-      <div class="wbs-toolbar">
-        <h2>{{ projectName }}</h2>
-        <div class="presence-bar">
-          <div class="presence-avatar" v-for="u in onlineUsers" :key="u.userId"
-               :style="{background: u.color}" :title="u.displayName">
-            {{ u.displayName[0] }}
+
+    <!-- Vue App 包含快速面板 + 主編輯區 -->
+    <div id="app" class="wbs-editor-wrap">
+
+      <!-- 左側快速子項面板 -->
+      <aside class="quick-panel" :class="{collapsed: panelCollapsed}">
+        <button class="panel-toggle-btn" @click="panelCollapsed=!panelCollapsed"
+                :title="panelCollapsed ? '展開快速子項' : '收合面板'">
+          <span>{{ panelCollapsed ? '▶' : '◀' }}</span>
+        </button>
+        <div class="panel-body" v-show="!panelCollapsed">
+          <div class="panel-title">快速子項</div>
+          <div v-for="item in quickItems" :key="item.id"
+               class="quick-item"
+               draggable="true"
+               @dragstart="onDragStart($event, item.title)"
+               :title="'拖曳至節點插入子項：' + item.title">
+            <span class="quick-item-icon">⊕</span>{{ item.title }}
+          </div>
+          <p v-if="!quickItems.length" class="panel-empty">尚無快速子項</p>
+          <p class="panel-hint">拖曳至節點 → 新增為子節點<br>拖曳至空白區 → 新增為根節點</p>
+        </div>
+      </aside>
+
+      <!-- 主編輯區 -->
+      <main class="wbs-main">
+        <div class="wbs-toolbar">
+          <h2>{{ projectName }}</h2>
+          <div class="presence-bar">
+            <div class="presence-avatar" v-for="u in onlineUsers" :key="u.userId"
+                 :style="{background: u.color}" :title="u.displayName">
+              {{ u.displayName[0] }}
+            </div>
+          </div>
+          <div class="wbs-actions">
+            <!-- 編輯鎖定切換 -->
+            <button class="btn btn-sm" :class="locked ? 'btn-locked' : 'btn-editing'"
+                    @click="locked=!locked" :title="locked ? '點擊解除鎖定' : '點擊鎖定，防止誤操作'">
+              {{ locked ? '🔒 鎖定' : '🔓 編輯中' }}
+            </button>
+            <template v-if="!locked">
+              <button class="btn btn-sm" @click="addRoot">+ 新增根節點</button>
+              <button class="btn btn-sm" @click="showTemplateModal=true" v-if="!hasNodes">套用模板</button>
+              <button class="btn btn-sm" @click="saveAsTemplate">另存為模板</button>
+            </template>
+            <button class="btn btn-sm" @click="exportCsv">匯出 CSV</button>
+            <button class="btn btn-sm" @click="exportXlsx">匯出 XLSX</button>
           </div>
         </div>
-        <div class="wbs-actions">
-          <button class="btn btn-sm" @click="addRoot">+ 新增根節點</button>
-          <button class="btn btn-sm" @click="exportCsv">匯出 CSV</button>
-          <button class="btn btn-sm" @click="exportXlsx">匯出 XLSX</button>
-          <button class="btn btn-sm" @click="showTemplateModal=true" v-if="!hasNodes">套用模板</button>
-          <button class="btn btn-sm" @click="saveAsTemplate">另存為模板</button>
+
+        <!-- WBS 樹：同時作為根節點的 drop zone -->
+        <div class="wbs-tree"
+             @dragover.prevent="treeHighlight=!locked"
+             @dragleave="treeHighlight=false"
+             @drop="onDropToRoot"
+             :class="{'drag-over': treeHighlight}"
+             v-if="roots.length">
+          <wbs-node v-for="n in roots" :key="n.id" :node="n"
+                    @add-child="addChild"
+                    @delete="deleteNode"
+                    @update="updateNode"
+                    @cursor-move="sendCursor"
+                    @drop-item="handleDropItem"></wbs-node>
+        </div>
+
+        <!-- 空狀態：同樣接受 drop -->
+        <div v-else class="wbs-empty-drop"
+             @dragover.prevent="treeHighlight=!locked"
+             @dragleave="treeHighlight=false"
+             @drop="onDropToRoot"
+             :class="{'drag-over': treeHighlight}">
+          <p>尚無節點，點擊「新增根節點」，或從左側拖曳快速子項至此</p>
+        </div>
+      </main>
+
+      <!-- 套用模板 Modal -->
+      <div class="modal-overlay" v-if="showTemplateModal" @click.self="showTemplateModal=false">
+        <div class="modal">
+          <h3>選擇模板</h3>
+          <div v-for="t in availableTemplates" :key="t.id"
+               class="template-option" @click="applyTemplate(t.id)">
+            <div class="template-option-name">{{ t.name }}</div>
+            <div class="template-option-desc" v-if="t.description">{{ t.description }}</div>
+          </div>
+          <p v-if="!availableTemplates.length" style="color:#636e72">尚無可用模板</p>
+          <div class="modal-actions">
+            <button class="btn" @click="showTemplateModal=false">取消</button>
+          </div>
         </div>
       </div>
-      <div class="wbs-tree" v-if="roots.length">
-        <wbs-node v-for="n in roots" :key="n.id" :node="n"
-                  @add-child="addChild" @delete="deleteNode"
-                  @update="updateNode"
-                  @cursor-move="sendCursor"></wbs-node>
-      </div>
-      <p v-else style="color:#636e72;margin-top:1rem">尚無節點，點擊「新增根節點」開始</p>
-      <div id="collab-bar" style="display:none">
-        <span id="presence-list"></span>
-      </div>
-    </main>
+
+    </div><!-- #app -->
   </div>
+
   <div th:replace="~{fragments/footer :: footer}"></div>
 
   <script th:src="@{/js/vue.global.prod.min.js}"></script>
   <script th:src="@{/js/xlsx.min.js}"></script>
   <script th:inline="javascript">
-    const CSRF_HEADER  = /*[[${_csrf.headerName}]]*/ 'X-CSRF-TOKEN';
-    const CSRF_TOKEN   = /*[[${_csrf.token}]]*/ '';
-    const PROJECT_ID   = /*[[${project.id}]]*/ 0;
+    const CSRF_HEADER = /*[[${_csrf.headerName}]]*/ 'X-CSRF-TOKEN';
+    const CSRF_TOKEN  = /*[[${_csrf.token}]]*/ '';
+    const PROJECT_ID  = /*[[${project.id}]]*/ 0;
   </script>
   <script th:src="@{/js/wbs-editor.js}"></script>
 </body>
