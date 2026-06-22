@@ -6,39 +6,39 @@
 
     const WbsNodeComp = defineComponent({
       name: 'wbs-node',
-      props: ['node', 'cursors'],
+      props: ['node', 'cursors', 'locked'],
       emits: ['add-child','delete','update','cursor-move','drop-item'],
       template: `
         <div class="wbs-node-wrap">
           <div class="wbs-node" :class="['status-'+node.status.toLowerCase(), {'drag-over': isDragOver}]"
                @mouseenter="onMouseEnter(node.id)" @mouseleave="onMouseLeave()"
-               @dragover.prevent="isDragOver=!locked.value"
+               @dragover.prevent="isDragOver=!locked"
                @dragleave="isDragOver=false"
                @drop.stop="onNodeDrop($event)">
             <span class="wbs-toggle" @click="node._open=!node._open">
               {{ node.children?.length ? (node._open?'▼':'▶') : '　' }}
             </span>
             <span class="wbs-title" v-if="!node._editing"
-                  @dblclick="!locked.value && startEdit()">{{ node.title }}</span>
+                  @dblclick="!locked && startEdit()">{{ node.title }}</span>
             <input class="wbs-title-input" v-else v-model="editTitle"
                    @blur="commitEdit" @keyup.enter="commitEdit" @keyup.escape="node._editing=false"
                    ref="titleInput" />
-            <span class="wbs-status-badge" @click="!locked.value && cycleStatus()">
+            <span class="wbs-status-badge" @click="!locked && cycleStatus()">
               {{ STATUS_LABEL[node.status] }}
             </span>
             <input class="wbs-field-input" type="text" v-model="editOwner"
-                   placeholder="負責人" :readonly="locked.value"
-                   @blur="!locked.value && commitField('owner', editOwner)" />
+                   placeholder="負責人" :readonly="locked"
+                   @blur="!locked && commitField('owner', editOwner)" />
             <input class="wbs-field-input" type="date" v-model="editStartDate"
-                   :readonly="locked.value"
-                   @blur="!locked.value && commitField('startDate', editStartDate)" />
+                   :readonly="locked"
+                   @blur="!locked && commitField('startDate', editStartDate)" />
             <input class="wbs-field-input" type="date" v-model="editEndDate"
-                   :readonly="locked.value"
-                   @blur="!locked.value && commitField('endDate', editEndDate)" />
+                   :readonly="locked"
+                   @blur="!locked && commitField('endDate', editEndDate)" />
             <input class="wbs-field-input" type="text" v-model="editNotes"
-                   placeholder="備註" :readonly="locked.value"
-                   @blur="!locked.value && commitField('notes', editNotes)" />
-            <div class="wbs-node-actions" v-if="!locked.value">
+                   placeholder="備註" :readonly="locked"
+                   @blur="!locked && commitField('notes', editNotes)" />
+            <div class="wbs-node-actions" v-if="!locked">
               <button @click="$emit('add-child', node)">+ 子</button>
               <button @click="$emit('delete', node)">刪</button>
             </div>
@@ -50,7 +50,7 @@
             </div>
           </div>
           <div class="wbs-children" v-if="node._open && node.children?.length">
-            <wbs-node v-for="c in node.children" :key="c.id" :node="c" :cursors="cursors"
+            <wbs-node v-for="c in node.children" :key="c.id" :node="c" :cursors="cursors" :locked="locked"
                       @add-child="$emit('add-child',$event)"
                       @delete="$emit('delete',$event)"
                       @update="$emit('update',$event)"
@@ -60,9 +60,6 @@
         </div>
       `,
       setup(props, { emit }) {
-        // 從 app 層取得鎖定狀態（provide/inject）
-        const locked = inject('locked', ref(false));
-
         const editTitle     = ref('');
         const titleInput    = ref(null);
         const editOwner     = ref(props.node.owner     || '');
@@ -108,14 +105,14 @@
         // 快速子項拖曳到此節點：新增為子節點
         function onNodeDrop(event) {
           isDragOver.value = false;
-          if (locked.value) return;
+          if (props.locked) return;
           const title = event.dataTransfer.getData('text/plain');
           if (!title) return;
           emit('drop-item', { parentId: props.node.id, title });
         }
 
         return { editTitle, titleInput, editOwner, editStartDate, editEndDate, editNotes,
-                 isDragOver, locked,
+                 isDragOver,
                  startEdit, commitEdit, cycleStatus, commitField,
                  onMouseEnter, onMouseLeave, nodeCursors, onNodeDrop, STATUS_LABEL };
       }
