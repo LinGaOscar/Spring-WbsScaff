@@ -35,6 +35,11 @@ public class WbsTemplate {
     @Column(name = "cloned_from")
     private Long clonedFrom;
 
+    // null = 系統模板（全員可使用）；非 null = 科模板（僅同科管理）
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "section_id")
+    private com.wbsscaff.department.Department section;
+
     @CreationTimestamp private LocalDateTime createdAt;
     @UpdateTimestamp  private LocalDateTime updatedAt;
 }

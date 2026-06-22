@@ -60,12 +60,4 @@ public class UserService {
         user.setEnabled(false);
         userRepository.save(user);
     }
-
-    @Transactional
-    public void setCanCreateProject(Long id, boolean value) {
-        User user = userRepository.findById(id)
-            .orElseThrow(() -> new EntityNotFoundException("使用者不存在"));
-        user.setCanCreateProject(value);
-        userRepository.save(user);
-    }
 }

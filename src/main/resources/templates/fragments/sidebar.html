@@ -6,10 +6,7 @@
   <ul>
     <li><a th:href="@{/projects}">專案列表</a></li>
     <li><a th:href="@{/templates}">模板管理</a></li>
-    <li sec:authorize="hasRole('ADMIN')">
-      <a th:href="@{/admin/users}">使用者管理</a>
-    </li>
-    <li sec:authorize="hasRole('ADMIN')">
+    <li sec:authorize="hasAnyRole('SECTION_CHIEF','PROJECT_LEADER')">
       <a th:href="@{/admin/quick-items}">快速子項管理</a>
     </li>
   </ul>

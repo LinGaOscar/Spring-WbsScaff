@@ -27,7 +27,7 @@ public class TemplateController {
     public ApiResponse<TemplateDto.ListResponse> listTemplates(
             @AuthenticationPrincipal UserDetails userDetails) {
         User user = userRepository.findByEmail(userDetails.getUsername()).orElseThrow();
-        return ApiResponse.ok(templateService.listAll(user.getId()));
+        return ApiResponse.ok(templateService.listAll(user));
     }
 
     @PostMapping("/api/templates/clone/{templateId}")
@@ -45,7 +45,7 @@ public class TemplateController {
     public ApiResponse<Void> deleteTemplate(@PathVariable Long id,
             @AuthenticationPrincipal UserDetails userDetails) {
         User user = userRepository.findByEmail(userDetails.getUsername()).orElseThrow();
-        templateService.deleteCustom(id, user.getId());
+        templateService.deleteCustom(id, user);
         return ApiResponse.ok(null);
     }
 

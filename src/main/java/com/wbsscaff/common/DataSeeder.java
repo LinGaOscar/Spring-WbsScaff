@@ -2,6 +2,11 @@ package com.wbsscaff.common;
 
 import com.wbsscaff.department.Department;
 import com.wbsscaff.department.DepartmentRepository;
+import com.wbsscaff.project.Project;
+import com.wbsscaff.project.ProjectMember;
+import com.wbsscaff.project.ProjectMemberId;
+import com.wbsscaff.project.ProjectMemberRepository;
+import com.wbsscaff.project.ProjectRepository;
 import com.wbsscaff.template.TemplateNodeRepository;
 import com.wbsscaff.template.TemplateRepository;
 import com.wbsscaff.template.WbsTemplate;
@@ -27,49 +32,62 @@ public class DataSeeder implements CommandLineRunner {
     private final TemplateRepository templateRepository;
     private final TemplateNodeRepository templateNodeRepository;
     private final WbsQuickItemRepository quickItemRepository;
+    private final ProjectRepository projectRepository;
+    private final ProjectMemberRepository projectMemberRepository;
 
     @Override
     public void run(String... args) {
-        seedDepartments();
-        seedAdminUser();
-        seedItUser();
+        seedOrganization();
         seedSystemTemplates();
-        seedTestAccounts();
         seedQuickItems();
+        seedTestProjects();
     }
 
-    private void seedDepartments() {
-        if (departmentRepository.count() > 0) return;
-        for (String name : new String[]{ "資訊部", "業務部", "財務部", "人資部", "產品部" }) {
-            Department dept = new Department();
-            dept.setName(name);
-            departmentRepository.save(dept);
-        }
-        log.info("已植入 5 個預設部門");
+    private void seedOrganization() {
+        if (userRepository.count() > 0) return;
+
+        // 建立部：資訊部（parent=null）
+        Department infoDiv = new Department();
+        infoDiv.setName("資訊部");
+        departmentRepository.save(infoDiv);
+
+        // 建立科：資訊科、維運科（parent=資訊部）
+        Department infoSection = new Department();
+        infoSection.setName("資訊科");
+        infoSection.setParent(infoDiv);
+        departmentRepository.save(infoSection);
+
+        Department opsSection = new Department();
+        opsSection.setName("維運科");
+        opsSection.setParent(infoDiv);
+        departmentRepository.save(opsSection);
+
+        // 資訊部 - 部長（指向「部」）
+        createUser("director@company.com", "director1234", "部長", infoDiv, User.Role.DIRECTOR);
+
+        // 資訊科帳號
+        createUser("chief@infotech.com", "chief1234", "資訊科長", infoSection, User.Role.SECTION_CHIEF);
+        createUser("leader@infotech.com", "leader1234", "資訊Leader", infoSection, User.Role.PROJECT_LEADER);
+        createUser("member1@infotech.com", "member1234", "資訊成員一", infoSection, User.Role.PROJECT_MEMBER);
+        createUser("member2@infotech.com", "member2_1234", "資訊成員二", infoSection, User.Role.PROJECT_MEMBER);
+
+        // 維運科帳號
+        createUser("ops.chief@company.com", "opschief1234", "維運科長", opsSection, User.Role.SECTION_CHIEF);
+        createUser("ops.leader@company.com", "opsleader1234", "維運Leader", opsSection, User.Role.PROJECT_LEADER);
+        createUser("ops.member@company.com", "opsmember1234", "維運成員", opsSection, User.Role.PROJECT_MEMBER);
+
+        log.info("已建立組織架構：資訊部 > 資訊科/維運科，共 8 個帳號");
     }
 
-    private void seedAdminUser() {
-        if (userRepository.findByEmail("admin@wbsscaff.com").isPresent()) return;
-        User admin = new User();
-        admin.setEmail("admin@wbsscaff.com");
-        admin.setPasswordHash(passwordEncoder.encode("admin1234"));
-        admin.setDisplayName("系統管理員");
-        admin.setRole(User.Role.ADMIN);
-        admin.setCanCreateProject(true);
-        userRepository.save(admin);
-        log.info("已建立初始 ADMIN：admin@wbsscaff.com / admin1234");
-    }
-
-    private void seedItUser() {
-        if (userRepository.findByEmail("it@system.com").isPresent()) return;
-        User it = new User();
-        it.setEmail("it@system.com");
-        it.setPasswordHash(passwordEncoder.encode("it1234"));
-        it.setDisplayName("IT稽核");
-        it.setRole(User.Role.IT_USER);
-        it.setCanCreateProject(false);
-        userRepository.save(it);
-        log.info("已建立 IT_USER：it@system.com / it1234");
+    private User createUser(String email, String password, String displayName,
+                            Department dept, User.Role role) {
+        User u = new User();
+        u.setEmail(email);
+        u.setPasswordHash(passwordEncoder.encode(password));
+        u.setDisplayName(displayName);
+        u.setDepartment(dept);
+        u.setRole(role);
+        return userRepository.save(u);
     }
 
     private void seedSystemTemplates() {
@@ -134,46 +152,12 @@ public class DataSeeder implements CommandLineRunner {
         log.info("已植入 2 個系統模板");
     }
 
-    private void seedTestAccounts() {
-        if (userRepository.findByEmail("manager@aaa.com").isPresent()) return;
-
-        // 建立部門 AAA
-        Department aaa = new Department();
-        aaa.setName("AAA");
-        departmentRepository.save(aaa);
-
-        // 主管：設為部門 manager，可建立專案
-        User manager = createUser("manager@aaa.com", "manager1234", "陳主管", aaa, true);
-        aaa.setManager(manager);
-        departmentRepository.save(aaa);
-
-        // 專案 Leader：可建立專案
-        createUser("leader@aaa.com", "leader1234", "林Leader", aaa, true);
-
-        // 專案成員：不可建立專案
-        createUser("member@aaa.com", "member1234", "王小明", aaa, false);
-
-        log.info("已建立 AAA 部門測試帳號：manager / leader / member");
-    }
-
-    private User createUser(String email, String password, String displayName,
-                            Department dept, boolean canCreate) {
-        User u = new User();
-        u.setEmail(email);
-        u.setPasswordHash(passwordEncoder.encode(password));
-        u.setDisplayName(displayName);
-        u.setDepartment(dept);
-        u.setRole(User.Role.MEMBER);
-        u.setCanCreateProject(canCreate);
-        return userRepository.save(u);
-    }
-
     private void createSystemTemplate(String name, String desc, String[][] nodeData) {
         WbsTemplate tpl = new WbsTemplate();
         tpl.setName(name); tpl.setDescription(desc); tpl.setSystem(true);
+        // 系統模板 section=null，代表全員可使用
         templateRepository.save(tpl);
 
-        // 以 title|parentTitle 為 key，處理樹狀結構對應
         java.util.Map<String, WbsTemplateNode> titleMap = new java.util.LinkedHashMap<>();
         java.util.Map<String, Integer> sortCounters = new java.util.HashMap<>();
 
@@ -196,10 +180,58 @@ public class DataSeeder implements CommandLineRunner {
 
     private void seedQuickItems() {
         if (quickItemRepository.count() > 0) return;
+        // 全域快速子項（section=null），全員可見但不可管理
         String[] titles = { "開防火牆", "申請環境", "部署申請", "系統測試", "使用者驗收", "正式上線", "文件更新", "會議記錄" };
         for (int i = 0; i < titles.length; i++) {
             quickItemRepository.save(WbsQuickItem.builder()
                 .title(titles[i]).category("常用").sortOrder(i).build());
         }
+        log.info("已植入 8 個全域快速子項");
+    }
+
+    private void seedTestProjects() {
+        if (projectRepository.count() > 0) return;
+
+        Department infoSection = departmentRepository.findAll().stream()
+            .filter(d -> "資訊科".equals(d.getName())).findFirst().orElse(null);
+        Department opsSection = departmentRepository.findAll().stream()
+            .filter(d -> "維運科".equals(d.getName())).findFirst().orElse(null);
+        User infoLeader = userRepository.findByEmail("leader@infotech.com").orElse(null);
+        User member1 = userRepository.findByEmail("member1@infotech.com").orElse(null);
+        User member2 = userRepository.findByEmail("member2@infotech.com").orElse(null);
+        User opsLeader = userRepository.findByEmail("ops.leader@company.com").orElse(null);
+        User opsMember = userRepository.findByEmail("ops.member@company.com").orElse(null);
+
+        if (infoSection != null && infoLeader != null) {
+            Project infoProject = new Project();
+            infoProject.setName("資訊科測試專案");
+            infoProject.setDepartment(infoSection);
+            infoProject.setOwner(infoLeader);
+            infoProject.setCreatedBy(infoLeader);
+            projectRepository.save(infoProject);
+            addProjectMember(infoProject, infoLeader);
+            if (member1 != null) addProjectMember(infoProject, member1);
+            if (member2 != null) addProjectMember(infoProject, member2);
+        }
+
+        if (opsSection != null && opsLeader != null) {
+            Project opsProject = new Project();
+            opsProject.setName("維運科測試專案");
+            opsProject.setDepartment(opsSection);
+            opsProject.setOwner(opsLeader);
+            opsProject.setCreatedBy(opsLeader);
+            projectRepository.save(opsProject);
+            addProjectMember(opsProject, opsLeader);
+            if (opsMember != null) addProjectMember(opsProject, opsMember);
+        }
+
+        log.info("已建立 2 個測試專案");
+    }
+
+    private void addProjectMember(Project project, User user) {
+        ProjectMember m = new ProjectMember();
+        m.setId(new ProjectMemberId(project.getId(), user.getId()));
+        m.setAssignedBy(user);
+        projectMemberRepository.save(m);
     }
 }

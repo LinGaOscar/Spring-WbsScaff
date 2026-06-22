@@ -30,13 +30,27 @@ public class User {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
-    private Role role = Role.MEMBER;
+    private Role role = Role.PROJECT_MEMBER;
 
-    private boolean canCreateProject = false;
     private boolean enabled = true;
 
     @CreationTimestamp
     private LocalDateTime createdAt;
 
-    public enum Role { ADMIN, IT_USER, MEMBER }
+    // 科長與專案Leader才能建立專案
+    public boolean canCreateProject() {
+        return role == Role.SECTION_CHIEF || role == Role.PROJECT_LEADER;
+    }
+
+    // 科長與專案Leader才能管理本科的模板與快速子項
+    public boolean canManageSection() {
+        return role == Role.SECTION_CHIEF || role == Role.PROJECT_LEADER;
+    }
+
+    public enum Role {
+        DIRECTOR,        // 部長：唯讀查看本部下所有科的專案
+        SECTION_CHIEF,   // 科長：管理本科所有專案、成員、模板、快速子項
+        PROJECT_LEADER,  // 專案Leader：建立專案、編輯WBS、管理自己的專案成員
+        PROJECT_MEMBER   // 專案Member：只能查看/編輯被加入的專案
+    }
 }

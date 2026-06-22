@@ -27,12 +27,8 @@ public class ProjectService {
         p.setName(req.getName());
         p.setOwner(creator);
         p.setCreatedBy(creator);
-        if (req.getDepartmentId() != null) {
-            Department dept = departmentRepository.findById(req.getDepartmentId())
-                .orElseThrow(() -> new EntityNotFoundException("部門不存在"));
-            p.setDepartment(dept);
-        } else if (creator.getDepartment() != null) {
-            // 自動繼承建立者所屬部門，確保部門隔離生效
+        // 自動繼承建立者所屬科（部門隔離的核心）
+        if (creator.getDepartment() != null) {
             p.setDepartment(creator.getDepartment());
         }
         Project saved = projectRepository.save(p);
@@ -42,16 +38,20 @@ public class ProjectService {
 
     @Transactional(readOnly = true)
     public List<Project> listForUser(User user) {
-        // ADMIN / IT_USER 可查所有專案（跨部門稽核）
-        if (user.getRole() == User.Role.ADMIN || user.getRole() == User.Role.IT_USER) {
-            return projectRepository.findAll();
-        }
-        // 一般成員：有部門者僅可見同部門專案；無部門者依成員資格
-        if (user.getDepartment() != null) {
-            return projectRepository.findByMemberOrOwnerAndDepartment(
-                user.getId(), user.getDepartment().getId());
-        }
-        return projectRepository.findByMemberOrOwner(user.getId());
+        return switch (user.getRole()) {
+            case DIRECTOR -> {
+                // 部長查看本部下所有科的專案
+                List<Long> sectionIds = departmentRepository.findByParentId(user.getDepartment().getId())
+                    .stream().map(Department::getId).toList();
+                yield sectionIds.isEmpty() ? List.of() : projectRepository.findBySectionIds(sectionIds);
+            }
+            case SECTION_CHIEF, PROJECT_LEADER ->
+                // 科長/Leader 查本科所有專案
+                projectRepository.findByDepartmentId(user.getDepartment().getId());
+            case PROJECT_MEMBER ->
+                // Member 只能看自己被加入的專案
+                projectRepository.findByMemberOrOwner(user.getId());
+        };
     }
 
     @Transactional
@@ -88,5 +88,41 @@ public class ProjectService {
     public Project getById(Long id) {
         return projectRepository.findById(id)
             .orElseThrow(() -> new EntityNotFoundException("專案不存在"));
+    }
+
+    // 判斷是否有寫入（編輯WBS）權限
+    public boolean canWriteProject(Long projectId, User user) {
+        Project project = getById(projectId);
+        return switch (user.getRole()) {
+            case DIRECTOR -> false; // 部長唯讀
+            case SECTION_CHIEF ->
+                // 科長可寫本科所有專案
+                project.getDepartment() != null
+                && project.getDepartment().getId().equals(user.getDepartment().getId());
+            case PROJECT_LEADER, PROJECT_MEMBER ->
+                // Leader/Member 只能寫自己被加入的專案
+                isMember(projectId, user.getId());
+        };
+    }
+
+    // 判斷是否有讀取權限
+    public boolean canReadProject(Long projectId, User user) {
+        Project project = getById(projectId);
+        return switch (user.getRole()) {
+            case DIRECTOR -> {
+                // 部長可讀本部下所有科的專案
+                if (project.getDepartment() == null) yield false;
+                Department section = project.getDepartment();
+                yield section.getParent() != null
+                    && section.getParent().getId().equals(user.getDepartment().getId());
+            }
+            case SECTION_CHIEF, PROJECT_LEADER ->
+                // 科長/Leader 可讀本科所有專案
+                project.getDepartment() != null
+                && project.getDepartment().getId().equals(user.getDepartment().getId());
+            case PROJECT_MEMBER ->
+                // Member 只能讀自己被加入的專案
+                isMember(projectId, user.getId());
+        };
     }
 }

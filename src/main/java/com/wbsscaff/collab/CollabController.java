@@ -25,14 +25,10 @@ public class CollabController {
     private final UserRepository userRepository;
     private final ProjectService projectService;
 
-    // 寫入操作：IT_USER 唯讀，非成員禁止
+    // 寫入操作：使用統一的 canWriteProject 判斷（部長、非成員 PROJECT_MEMBER 均被拒絕）
     private void checkWriteAccess(Long projectId, User user) {
-        if (user.getRole() == User.Role.IT_USER) {
-            throw new SecurityException("IT_User 僅有唯讀權限");
-        }
-        if (user.getRole() != User.Role.ADMIN
-                && !projectService.isMember(projectId, user.getId())) {
-            throw new SecurityException("您不是此專案成員");
+        if (!projectService.canWriteProject(projectId, user)) {
+            throw new SecurityException("無編輯此專案的權限");
         }
     }
 

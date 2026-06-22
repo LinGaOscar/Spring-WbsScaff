@@ -6,7 +6,6 @@ import com.wbsscaff.user.UserRepository;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Controller;
@@ -30,18 +29,14 @@ public class ProjectController {
     public String projectDetailPage(@PathVariable Long id, Model model,
             @AuthenticationPrincipal UserDetails userDetails) {
         User user = userRepository.findByEmail(userDetails.getUsername()).orElseThrow();
-        Project project = projectService.getById(id);
-        // ADMIN / IT_USER 可查任何專案；一般使用者需是成員且同部門
-        if (user.getRole() != User.Role.ADMIN && user.getRole() != User.Role.IT_USER) {
-            if (!projectService.isMember(id, user.getId())) {
-                return "redirect:/projects";
-            }
-            if (user.getDepartment() != null && project.getDepartment() != null
-                    && !project.getDepartment().getId().equals(user.getDepartment().getId())) {
-                return "redirect:/projects";
-            }
+        if (!projectService.canReadProject(id, user)) {
+            return "redirect:/projects";
         }
+        Project project = projectService.getById(id);
+        // 部長僅能唯讀，不得編輯WBS
+        boolean readOnly = user.getRole() == User.Role.DIRECTOR;
         model.addAttribute("project", project);
+        model.addAttribute("readOnly", readOnly);
         return "project/detail";
     }
 
@@ -49,7 +44,6 @@ public class ProjectController {
     @ResponseBody
     public ApiResponse<List<ProjectDto.Response>> listProjects(
             @AuthenticationPrincipal UserDetails userDetails) {
-        // 使用者不存在視為認證異常，拋出例外由 GlobalExceptionHandler 處理
         User user = userRepository.findByEmail(userDetails.getUsername())
             .orElseThrow(() -> new EntityNotFoundException("使用者不存在"));
         return ApiResponse.ok(
@@ -63,8 +57,8 @@ public class ProjectController {
             @Valid @RequestBody ProjectDto.CreateRequest req,
             @AuthenticationPrincipal UserDetails userDetails) {
         User user = userRepository.findByEmail(userDetails.getUsername()).orElseThrow();
-        // 只有可建立專案的用戶或管理員才能新增專案
-        if (!user.isCanCreateProject() && user.getRole() != User.Role.ADMIN) {
+        // 只有科長與專案Leader才能建立專案
+        if (!user.canCreateProject()) {
             throw new SecurityException("您沒有建立專案的權限");
         }
         return ApiResponse.ok(ProjectDto.Response.from(
@@ -75,7 +69,6 @@ public class ProjectController {
     @ResponseBody
     public ApiResponse<ProjectDto.Response> getProject(@PathVariable Long id,
             @AuthenticationPrincipal UserDetails userDetails) {
-        // 取得單一專案資訊，供 WBS 編輯器頁面顯示專案名稱；非成員或跨部門禁止存取
         checkProjectReadAccess(id, userDetails);
         return ApiResponse.ok(ProjectDto.Response.from(projectService.getById(id)));
     }
@@ -91,14 +84,8 @@ public class ProjectController {
 
     private void checkProjectReadAccess(Long id, UserDetails userDetails) {
         User user = userRepository.findByEmail(userDetails.getUsername()).orElseThrow();
-        if (user.getRole() == User.Role.ADMIN || user.getRole() == User.Role.IT_USER) return;
-        if (!projectService.isMember(id, user.getId())) {
-            throw new SecurityException("您不是此專案成員");
-        }
-        Project project = projectService.getById(id);
-        if (user.getDepartment() != null && project.getDepartment() != null
-                && !project.getDepartment().getId().equals(user.getDepartment().getId())) {
-            throw new SecurityException("跨部門存取被拒絕");
+        if (!projectService.canReadProject(id, user)) {
+            throw new SecurityException("無存取權限");
         }
     }
 
@@ -108,12 +95,16 @@ public class ProjectController {
             @PathVariable Long id,
             @RequestBody Map<String, Long> body,
             @AuthenticationPrincipal UserDetails userDetails) {
-        // 只有管理員或專案負責人才可新增成員，防止任意成員擴權
         User caller = userRepository.findByEmail(userDetails.getUsername())
             .orElseThrow(() -> new EntityNotFoundException("使用者不存在"));
         Project project = projectService.getById(id);
-        if (caller.getRole() != User.Role.ADMIN && !project.getOwner().getId().equals(caller.getId())) {
-            throw new SecurityException("只有管理員或專案負責人可以新增成員");
+        // 科長可管理本科任何專案成員；專案負責人可管理自己的專案
+        boolean isSectionChief = caller.getRole() == User.Role.SECTION_CHIEF
+            && project.getDepartment() != null
+            && project.getDepartment().getId().equals(caller.getDepartment().getId());
+        boolean isProjectOwner = project.getOwner().getId().equals(caller.getId());
+        if (!isSectionChief && !isProjectOwner) {
+            throw new SecurityException("只有科長或專案負責人才可管理成員");
         }
         projectService.addMember(id, body.get("userId"), caller.getId());
         return ApiResponse.ok(null);
@@ -125,12 +116,15 @@ public class ProjectController {
             @PathVariable Long id,
             @PathVariable Long userId,
             @AuthenticationPrincipal UserDetails userDetails) {
-        // 只有管理員或專案負責人才可移除成員
         User caller = userRepository.findByEmail(userDetails.getUsername())
             .orElseThrow(() -> new EntityNotFoundException("使用者不存在"));
         Project project = projectService.getById(id);
-        if (caller.getRole() != User.Role.ADMIN && !project.getOwner().getId().equals(caller.getId())) {
-            throw new SecurityException("只有管理員或專案負責人可以移除成員");
+        boolean isSectionChief = caller.getRole() == User.Role.SECTION_CHIEF
+            && project.getDepartment() != null
+            && project.getDepartment().getId().equals(caller.getDepartment().getId());
+        boolean isProjectOwner = project.getOwner().getId().equals(caller.getId());
+        if (!isSectionChief && !isProjectOwner) {
+            throw new SecurityException("只有科長或專案負責人才可移除成員");
         }
         projectService.removeMember(id, userId);
         return ApiResponse.ok(null);
@@ -138,9 +132,17 @@ public class ProjectController {
 
     @PatchMapping("/api/projects/{id}/owner")
     @ResponseBody
-    @PreAuthorize("hasRole('ADMIN')")
     public ApiResponse<Void> changeOwner(
-            @PathVariable Long id, @RequestBody Map<String, Long> body) {
+            @PathVariable Long id,
+            @RequestBody Map<String, Long> body,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        // 只有科長才能變更專案負責人
+        User caller = userRepository.findByEmail(userDetails.getUsername()).orElseThrow();
+        Project project = projectService.getById(id);
+        boolean isSectionChief = caller.getRole() == User.Role.SECTION_CHIEF
+            && project.getDepartment() != null
+            && project.getDepartment().getId().equals(caller.getDepartment().getId());
+        if (!isSectionChief) throw new SecurityException("只有科長可以變更負責人");
         projectService.changeOwner(id, body.get("userId"));
         return ApiResponse.ok(null);
     }

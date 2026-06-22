@@ -1,5 +1,6 @@
 package com.wbsscaff.wbs;
 
+import com.wbsscaff.department.Department;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -24,6 +25,11 @@ public class WbsQuickItem {
 
     @Column(name = "sort_order")
     private int sortOrder;
+
+    // null = 全域預設（全員可見，不可管理）；非 null = 科快速子項（僅同科 SECTION_CHIEF/PROJECT_LEADER 管理）
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "section_id")
+    private Department section;
 
     @CreationTimestamp
     private LocalDateTime createdAt;

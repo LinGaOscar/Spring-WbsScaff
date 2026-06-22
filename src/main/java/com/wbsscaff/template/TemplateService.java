@@ -25,12 +25,20 @@ public class TemplateService {
     private final UserRepository userRepository;
     private final ObjectMapper objectMapper;
 
-    public TemplateDto.ListResponse listAll(Long userId) {
+    public TemplateDto.ListResponse listAll(User user) {
         TemplateDto.ListResponse res = new TemplateDto.ListResponse();
-        res.setSystem(templateRepository.findByIsSystemTrue()
-            .stream().map(TemplateDto.TemplateResponse::from).toList());
-        res.setCustom(templateRepository.findByOwnerIdAndIsSystemFalse(userId)
-            .stream().map(TemplateDto.TemplateResponse::from).toList());
+        // 判斷 user 是否屬於某個科（parent != null 代表是科）
+        boolean inSection = user.getDepartment() != null && user.getDepartment().getParent() != null;
+        if (inSection) {
+            // 科成員：可見系統模板 + 本科自訂模板
+            List<WbsTemplate> visible = templateRepository.findVisibleToSection(user.getDepartment().getId());
+            res.setSystem(visible.stream().filter(WbsTemplate::isSystem).map(TemplateDto.TemplateResponse::from).toList());
+            res.setCustom(visible.stream().filter(t -> !t.isSystem()).map(TemplateDto.TemplateResponse::from).toList());
+        } else {
+            // 部長或無所屬科：只看系統模板
+            res.setSystem(templateRepository.findByIsSystemTrue().stream().map(TemplateDto.TemplateResponse::from).toList());
+            res.setCustom(List.of());
+        }
         return res;
     }
 
@@ -46,6 +54,8 @@ public class TemplateService {
         clone.setOwner(owner);
         clone.setSystem(false);
         clone.setClonedFrom(templateId);
+        // clone 後歸屬建立者的科
+        clone.setSection(owner.getDepartment());
         templateRepository.save(clone);
 
         // 複製節點並保留父子關係（舊 ID → 新 ID 對映）
@@ -64,19 +74,22 @@ public class TemplateService {
     }
 
     @Transactional
-    public void deleteCustom(Long templateId, Long userId) {
+    public void deleteCustom(Long templateId, User user) {
         WbsTemplate tpl = templateRepository.findById(templateId)
             .orElseThrow(() -> new EntityNotFoundException("模板不存在"));
         if (tpl.isSystem()) throw new IllegalArgumentException("系統模板不可刪除");
-        if (!tpl.getOwner().getId().equals(userId)) throw new SecurityException("無權刪除此模板");
+        // 需要 canManageSection 且只能刪除本科的模板
+        if (!user.canManageSection()) throw new SecurityException("無管理模板的權限");
+        if (tpl.getSection() == null || !tpl.getSection().getId().equals(user.getDepartment().getId()))
+            throw new SecurityException("無權刪除其他科的模板");
         nodeRepository.deleteByTemplate_Id(templateId);
         templateRepository.delete(tpl);
     }
 
     @Transactional
     public void setDefault(Long templateId, Long userId) {
-        // 先清除該使用者所有自訂模板的預設標記
-        templateRepository.findByOwnerIdAndIsSystemFalse(userId)
+        // 先清除該使用者所屬科所有自訂模板的預設標記
+        templateRepository.findBySectionId(userId)
             .forEach(t -> { t.setDefault(false); templateRepository.save(t); });
         WbsTemplate tpl = templateRepository.findById(templateId).orElseThrow();
         tpl.setDefault(true);
@@ -93,9 +106,13 @@ public class TemplateService {
 
     @Transactional
     public TemplateDto.Response updateTemplate(Long id, TemplateDto.UpdateRequest req, User caller) {
-        WbsTemplate template = templateRepository.findByIdAndOwner(id, caller)
-            .orElseThrow(() -> new EntityNotFoundException("模板不存在或無權限"));
+        WbsTemplate template = templateRepository.findById(id)
+            .orElseThrow(() -> new EntityNotFoundException("模板不存在"));
         if (template.isSystem()) throw new SecurityException("系統模板不可修改");
+        // 只能修改本科的模板
+        if (!caller.canManageSection()) throw new SecurityException("無管理模板的權限");
+        if (template.getSection() == null || !template.getSection().getId().equals(caller.getDepartment().getId()))
+            throw new SecurityException("無權修改其他科的模板");
         if (req.getName() != null) template.setName(req.getName());
         if (req.getDescription() != null) template.setDescription(req.getDescription());
         return TemplateDto.Response.from(templateRepository.save(template));
@@ -128,7 +145,11 @@ public class TemplateService {
     public WbsTemplate saveProjectAsTemplate(Long projectId, Long userId, String name) {
         User owner = userRepository.findById(userId).orElseThrow();
         WbsTemplate tpl = new WbsTemplate();
-        tpl.setName(name); tpl.setOwner(owner); tpl.setSystem(false);
+        tpl.setName(name);
+        tpl.setOwner(owner);
+        tpl.setSystem(false);
+        // 模板歸屬建立者的科
+        tpl.setSection(owner.getDepartment());
         templateRepository.save(tpl);
 
         List<WbsNode> wbsNodes = wbsRepository.findByProjectIdOrderBySortOrder(projectId);

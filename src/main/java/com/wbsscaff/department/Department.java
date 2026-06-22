@@ -1,6 +1,5 @@
 package com.wbsscaff.department;
 
-import com.wbsscaff.user.User;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -18,9 +17,10 @@ public class Department {
     @Column(nullable = false, length = 100)
     private String name;
 
+    // parent == null 代表「部」，parent != null 代表「科」（屬於某部）
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "manager_id")
-    private User manager;
+    @JoinColumn(name = "parent_id")
+    private Department parent;
 
     @CreationTimestamp
     private LocalDateTime createdAt;

@@ -89,44 +89,40 @@ public class WbsController {
             @RequestBody Map<String, String> body,
             @AuthenticationPrincipal UserDetails userDetails) {
         User user = userRepository.findByEmail(userDetails.getUsername()).orElseThrow();
+        // 需要 canManageSection 才能儲存為模板
+        if (!user.canManageSection()) {
+            throw new SecurityException("只有科長或專案Leader才能儲存模板");
+        }
         return ApiResponse.ok(TemplateDto.TemplateResponse.from(
             templateService.saveProjectAsTemplate(projectId, user.getId(), body.get("name"))));
     }
 
-    // 規格要求的路徑：套用模板至指定專案（檢查成員或 ADMIN 權限）
+    // 套用模板至指定專案（需有寫入權限）
     @PostMapping("/api/projects/{projectId}/apply-template/{templateId}")
     public ApiResponse<Void> applyTemplate(@PathVariable Long projectId,
             @PathVariable Long templateId,
             @AuthenticationPrincipal UserDetails userDetails) {
         User caller = userRepository.findByEmail(userDetails.getUsername()).orElseThrow();
-        if (caller.getRole() == User.Role.IT_USER) {
-            throw new SecurityException("IT_User 僅有唯讀權限，無法套用模板");
-        }
-        if (!projectService.isMember(projectId, caller.getId()) && caller.getRole() != User.Role.ADMIN) {
-            throw new SecurityException("非專案成員無法套用模板");
+        if (!projectService.canWriteProject(projectId, caller)) {
+            throw new SecurityException("無編輯權限");
         }
         templateService.applyToProject(templateId, projectId);
         return ApiResponse.ok(null);
     }
 
-    // 讀取：ADMIN 和 IT_USER 可繞過成員檢查
+    // 讀取：有 canReadProject 才能查看節點
     private void checkReadAccess(Long projectId, UserDetails userDetails) {
         User user = userRepository.findByEmail(userDetails.getUsername()).orElseThrow();
-        if (user.getRole() == User.Role.ADMIN || user.getRole() == User.Role.IT_USER) return;
-        if (!projectService.isMember(projectId, user.getId())) {
-            throw new SecurityException("您不是此專案成員");
+        if (!projectService.canReadProject(projectId, user)) {
+            throw new SecurityException("無存取權限");
         }
     }
 
-    // 寫入：僅 ADMIN 和專案成員；IT_USER 唯讀無法修改
+    // 寫入：有 canWriteProject 才能修改WBS（部長被拒絕）
     private void checkMember(Long projectId, UserDetails userDetails) {
         User user = userRepository.findByEmail(userDetails.getUsername()).orElseThrow();
-        if (user.getRole() == User.Role.ADMIN) return;
-        if (user.getRole() == User.Role.IT_USER) {
-            throw new SecurityException("IT_User 僅有唯讀權限，無法修改 WBS");
-        }
-        if (!projectService.isMember(projectId, user.getId())) {
-            throw new SecurityException("您不是此專案成員");
+        if (!projectService.canWriteProject(projectId, user)) {
+            throw new SecurityException("您沒有編輯此專案的權限");
         }
     }
 }

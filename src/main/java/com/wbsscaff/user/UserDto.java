@@ -30,6 +30,7 @@ public class UserDto {
         private String displayName;
         private String departmentName;
         private User.Role role;
+        // 由 role 推算，供前端判斷是否顯示「建立專案」按鈕
         private boolean canCreateProject;
         private boolean enabled;
 
@@ -40,7 +41,7 @@ public class UserDto {
             r.displayName = user.getDisplayName();
             r.departmentName = user.getDepartment() != null ? user.getDepartment().getName() : null;
             r.role = user.getRole();
-            r.canCreateProject = user.isCanCreateProject();
+            r.canCreateProject = user.canCreateProject();
             r.enabled = user.isEnabled();
             return r;
         }

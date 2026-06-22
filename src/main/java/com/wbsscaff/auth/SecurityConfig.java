@@ -23,7 +23,6 @@ public class SecurityConfig {
                 .requestMatchers("/login", "/css/**", "/js/**", "/favicon.ico").permitAll()
                 // SockJS fallback 端點需開放，STOMP 認證由 Spring WebSocket 自行處理
                 .requestMatchers("/ws/**").permitAll()
-                .requestMatchers("/admin/**").hasAnyRole("ADMIN", "IT_USER")
                 .anyRequest().authenticated()
             )
             .formLogin(form -> form
