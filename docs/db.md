@@ -19,7 +19,7 @@
 |---|---|---|
 | id | bigserial PK | |
 | name | varchar(100) | 部門名稱 |
-| manager_id | bigint FK→users | 部門主管 |
+| parent_id | bigint FK→departments | 上層部門（null = 部，non-null = 科） |
 | created_at | timestamp | |
 
 ### `users` — 使用者
@@ -31,8 +31,7 @@
 | password_hash | text | BCrypt |
 | display_name | varchar(100) | 顯示名稱 |
 | department_id | bigint FK→departments | 所屬部門（nullable） |
-| role | varchar CHECK | `ADMIN` / `IT_USER` / `MEMBER` |
-| can_create_project | boolean | 是否可建立專案 |
+| role | varchar CHECK | `DIRECTOR` / `SECTION_CHIEF` / `PROJECT_LEADER` / `PROJECT_MEMBER` |
 | enabled | boolean | 帳號是否啟用 |
 | created_at | timestamp | |
 
@@ -54,7 +53,7 @@
 |---|---|---|
 | project_id | bigint FK→projects | |
 | user_id | bigint FK→users | |
-| assigned_by | bigint FK→users | 加入者 |
+| assigned_by | bigint FK→users | 指派者 |
 | assigned_at | timestamp | |
 
 ### `wbs_nodes` — WBS 節點
@@ -81,8 +80,11 @@
 | id | bigserial PK | |
 | name | varchar(200) | 模板名稱 |
 | description | text | 說明 |
-| is_system | boolean | 系統模板（唯讀）|
-| created_by | bigint FK→users | 建立者（系統模板為 null） |
+| is_system | boolean | 系統模板（不可刪除） |
+| section_id | bigint FK→departments | 所屬科（null = 系統模板，全員可用） |
+| owner_id | bigint FK→users | 建立者 |
+| cloned_from | bigint | 複製來源模板 ID |
+| is_default | boolean | 是否為預設模板 |
 | created_at | timestamp | |
 
 ### `wbs_template_nodes` — 模板節點
@@ -95,6 +97,16 @@
 | title | varchar(200) | |
 | sort_order | int | |
 
+### `wbs_quick_items` — 快速子項
+
+| 欄位 | 類型 | 說明 |
+|---|---|---|
+| id | bigserial PK | |
+| title | varchar(200) | 子項標題 |
+| category | varchar(100) | 分類 |
+| section_id | bigint FK→departments | 所屬科（null = 全域，所有人可見） |
+| sort_order | int | 排序 |
+
 ### `spring_session` / `spring_session_attributes` — Session 儲存
 
 由 Spring Session JDBC 自動管理，不需手動操作。
@@ -103,40 +115,47 @@
 
 ## 種子資料（DataSeeder 自動植入）
 
-### 系統帳號
+### 組織架構
 
-| Email | 密碼 | 角色 | 說明 |
-|---|---|---|---|
-| `admin@wbsscaff.com` | `admin1234` | `ADMIN` | 系統管理員，全權限 |
-| `it@system.com` | `it1234` | `IT_USER` | IT 稽核，跨部門唯讀 |
+```
+資訊部（部）
+├── 資訊科（科）
+└── 資訊科2（科）
+```
 
-### AAA 部門測試帳號
+### 測試帳號
 
-| Email | 密碼 | 角色 | canCreateProject | 職責 |
-|---|---|---|:---:|---|
-| `manager@aaa.com` | `manager1234` | `MEMBER` | ✅ | AAA 部門主管（dept.manager） |
-| `leader@aaa.com` | `leader1234` | `MEMBER` | ✅ | 專案 Leader |
-| `member@aaa.com` | `member1234` | `MEMBER` | ❌ | 一般成員 |
+| Email | 密碼 | 角色 | 所屬 | 說明 |
+|---|---|---|---|---|
+| `director@company.com` | `director1234` | `DIRECTOR` | 資訊部 | 部長，可查閱下屬科所有專案（唯讀），可自建專案 |
+| `chief@infotech.com` | `chief1234` | `SECTION_CHIEF` | 資訊科 | 科長，管理資訊科所有專案與成員 |
+| `leader@infotech.com` | `leader1234` | `PROJECT_LEADER` | 資訊科 | 專案 Leader，可建立與管理自己的專案 |
+| `member1@infotech.com` | `member1234` | `PROJECT_MEMBER` | 資訊科 | 一般成員，僅能操作被加入的專案 |
+| `member2@infotech.com` | `member2_1234` | `PROJECT_MEMBER` | 資訊科 | 一般成員 |
+| `chief2@infotech.com` | `chief2_1234` | `SECTION_CHIEF` | 資訊科2 | 科長 |
+| `leader2@infotech.com` | `leader2_1234` | `PROJECT_LEADER` | 資訊科2 | 專案 Leader |
+| `member3@infotech.com` | `member3_1234` | `PROJECT_MEMBER` | 資訊科2 | 一般成員 |
 
-### 系統模板
+### 系統模板（全員可用）
 
 | 名稱 | 說明 |
 |---|---|
-| 新功能開發 | SIT + PROD 兩階段（功能開發用）|
-| 專案開發 | SIT + PROD 兩階段（含三方測試）|
+| 新功能開發 | SIT + PROD 兩階段（功能開發用） |
+| 專案開發 | SIT + PROD 兩階段（含第三方測試） |
 
-### 預設部門
+### 測試專案
 
-資訊部、業務部、財務部、人資部、產品部、AAA（測試）
+| 專案名稱 | 所屬科 | 負責人 | 成員 |
+|---|---|---|---|
+| 資訊科測試專案 | 資訊科 | leader | member1、member2 |
+| 資訊科2測試專案 | 資訊科2 | leader2 | member3 |
 
 ---
 
 ## 部門隔離機制
 
-- `Project.department_id` 在建立時自動繼承 `creator.department_id`
-- `MEMBER` 查詢專案時使用 `findByMemberOrOwnerAndDepartment`：
-  ```sql
-  WHERE (owner_id = ? OR member user_id = ?)
-    AND (department_id IS NULL OR department_id = ?)
-  ```
-- `ADMIN` / `IT_USER` 使用 `findAll()`，不受部門限制
+- `Project.department_id` 建立時自動繼承建立者所屬部門
+- 部長（`DIRECTOR`）屬於部層級，可查閱下屬科所有專案但不可編輯；自建專案可編輯
+- 科長（`SECTION_CHIEF`）只能見本科專案，可指派任意使用者為成員
+- Leader / Member 只能見被加入的專案（或本科所有專案 for Leader）
+- 詳細權限邏輯：`ProjectService.canReadProject()` / `canWriteProject()`

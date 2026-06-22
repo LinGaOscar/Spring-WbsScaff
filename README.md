@@ -75,9 +75,9 @@ mvn spring-boot:run
 - Cookie：`SESSION`（HttpOnly）
 
 ### 專案管理
-- 列表：`/projects` — 僅顯示使用者所屬部門且已加入的專案
-- 建立：需 `canCreateProject = true` 或 `ADMIN`
-- 成員管理：`ADMIN` 或專案負責人可新增 / 移除成員
+- 列表：`/projects` — 依角色顯示可見專案
+- 建立：`DIRECTOR` / `SECTION_CHIEF` / `PROJECT_LEADER`
+- 成員管理：科長（本科專案）或專案負責人可新增 / 移除成員，可跨科指派
 
 ### WBS 編輯器
 - 路徑：`/projects/{id}`
@@ -86,11 +86,11 @@ mvn spring-boot:run
 - 匯出：CSV / XLSX
 
 ### 模板系統
-- 系統模板（唯讀）：「新功能開發」、「專案開發」
-- 自訂模板：另存為模板、套用至新專案
+- 系統模板（全員唯讀）：「新功能開發」、「專案開發」
+- 科別模板：科長 / Leader 可另存、套用、管理本科模板
 
-### 使用者管理
-- 路徑：`/admin/users`（`ADMIN` 完整操作；`IT_USER` 唯讀）
+### 快速子項管理
+- 路徑：`/admin/quick-items`（科長 / Leader 可管理）
 
 ---
 
