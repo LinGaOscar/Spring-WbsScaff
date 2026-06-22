@@ -47,13 +47,20 @@
             </span>
             <span v-if="!(memberMap[proj.id]?.length)" style="color:#b2bec3;font-size:0.85rem">尚無成員</span>
           </div>
-          <!-- 新增成員 -->
+          <!-- 新增成員：本科優先，optgroup 分組 -->
           <div class="add-member-row">
             <select v-model="addingUser[proj.id]">
               <option value="">— 選擇使用者 —</option>
-              <option v-for="u in availableUsers(proj.id)" :key="u.id" :value="u.id">
-                {{ u.displayName }}（{{ u.departmentName || '無部門' }}）
-              </option>
+              <optgroup v-if="availableUserGroups(proj.id).sameDept.length" label="本科">
+                <option v-for="u in availableUserGroups(proj.id).sameDept" :key="u.id" :value="u.id">
+                  {{ u.displayName }}
+                </option>
+              </optgroup>
+              <optgroup v-if="availableUserGroups(proj.id).others.length" label="其他科">
+                <option v-for="u in availableUserGroups(proj.id).others" :key="u.id" :value="u.id">
+                  {{ u.displayName }}（{{ u.departmentName || '無部門' }}）
+                </option>
+              </optgroup>
             </select>
             <button class="btn btn-sm btn-primary" style="width:auto"
                     @click="addMember(proj.id)" :disabled="!addingUser[proj.id]">新增</button>
@@ -76,20 +83,23 @@
 
     createApp({
       setup() {
-        const projects   = ref([]);
-        const allUsers   = ref([]);
-        const memberMap  = reactive({});   // projectId → member[]
-        const addingUser = reactive({});   // projectId → userId
-        const expanded   = ref(new Set());
-        const error      = ref('');
+        const projects      = ref([]);
+        const allUsers      = ref([]);
+        const currentUser   = ref(null);
+        const memberMap     = reactive({});   // projectId → member[]
+        const addingUser    = reactive({});   // projectId → userId
+        const expanded      = ref(new Set());
+        const error         = ref('');
 
         async function load() {
-          const [pd, ud] = await Promise.all([
+          const [pd, ud, me] = await Promise.all([
             api('/api/projects'),
-            api('/api/users')
+            api('/api/users'),
+            api('/api/users/me')
           ]);
           if (pd.success) projects.value = pd.data;
           if (ud.success) allUsers.value = ud.data;
+          if (me.success) currentUser.value = me.data;
         }
 
         async function loadMembers(projectId) {
@@ -108,9 +118,15 @@
           expanded.value = s;
         }
 
-        function availableUsers(projectId) {
+        // 回傳 { sameDept: [], others: [] }，供 optgroup 分組顯示
+        function availableUserGroups(projectId) {
           const memberIds = new Set((memberMap[projectId] || []).map(m => m.userId));
-          return allUsers.value.filter(u => !memberIds.has(u.id));
+          const myDept = currentUser.value?.departmentName;
+          const candidates = allUsers.value.filter(u => !memberIds.has(u.id));
+          return {
+            sameDept: candidates.filter(u => u.departmentName === myDept),
+            others:   candidates.filter(u => u.departmentName !== myDept)
+          };
         }
 
         async function addMember(projectId) {
@@ -136,7 +152,7 @@
 
         onMounted(load);
         return { projects, memberMap, addingUser, expanded, error,
-                 toggle, availableUsers, addMember, removeMember };
+                 toggle, availableUserGroups, addMember, removeMember };
       }
     }).mount('#app');
   </script>

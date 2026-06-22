@@ -4,10 +4,10 @@
 <body>
 <nav th:fragment="sidebar" class="sidebar">
   <ul>
-    <li class="sidebar-group-label">專案列表</li>
-    <li><a th:href="@{/projects}">専案管理</a></li>
+    <li class="sidebar-group-label">專案管理</li>
+    <li><a th:href="@{/projects}">專案列表管理</a></li>
     <li sec:authorize="hasAnyRole('SECTION_CHIEF','PROJECT_LEADER')">
-      <a th:href="@{/admin/members}">成員管理</a>
+      <a th:href="@{/admin/members}">專案成員管理</a>
     </li>
 
     <li class="sidebar-group-label">模板管理</li>
