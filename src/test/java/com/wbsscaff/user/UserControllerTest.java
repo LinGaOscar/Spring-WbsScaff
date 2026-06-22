@@ -20,29 +20,27 @@ class UserControllerTest {
     @Autowired UserRepository userRepository;
 
     @Test
-    @WithMockUser(roles = "ADMIN")
-    void listUsers_asAdmin_returns200() throws Exception {
+    @WithMockUser(roles = "SECTION_CHIEF")
+    void listUsers_authenticated_returns200() throws Exception {
         mockMvc.perform(get("/api/users"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.success").value(true));
     }
 
     @Test
-    @WithMockUser(roles = "MEMBER")
-    void listUsers_asMember_returns403() throws Exception {
+    void listUsers_unauthenticated_redirects() throws Exception {
         mockMvc.perform(get("/api/users"))
-            .andExpect(status().isForbidden());
+            .andExpect(status().is3xxRedirection());
     }
 
     @Test
-    @WithMockUser(username = "me@test.com", roles = "MEMBER")
+    @WithMockUser(username = "me@test.com", roles = "PROJECT_MEMBER")
     void getCurrentUser_returns200() throws Exception {
-        // 建立測試使用者
         User user = new User();
         user.setEmail("me@test.com");
         user.setPasswordHash("x");
         user.setDisplayName("Me");
-        user.setRole(User.Role.MEMBER);
+        user.setRole(User.Role.PROJECT_MEMBER);
         userRepository.save(user);
 
         mockMvc.perform(get("/api/users/me"))

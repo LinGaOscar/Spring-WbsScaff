@@ -35,7 +35,7 @@ class UserServiceTest {
         req.setEmail("user@test.com");
         req.setPassword("secret123");
         req.setDisplayName("測試使用者");
-        req.setRole(User.Role.MEMBER);
+        req.setRole(User.Role.PROJECT_MEMBER);
 
         User created = userService.createUser(req);
 
@@ -44,18 +44,27 @@ class UserServiceTest {
     }
 
     @Test
-    void setCanCreateProject_updatesFlag() {
+    void sectionChief_canCreateProject() {
         UserDto.CreateRequest req = new UserDto.CreateRequest();
-        req.setEmail("pm@test.com");
+        req.setEmail("chief@test.com");
         req.setPassword("pass");
-        req.setDisplayName("PM");
-        req.setRole(User.Role.MEMBER);
+        req.setDisplayName("科長");
+        req.setRole(User.Role.SECTION_CHIEF);
         User user = userService.createUser(req);
 
-        userService.setCanCreateProject(user.getId(), true);
+        assertThat(user.canCreateProject()).isTrue();
+    }
 
-        User updated = userRepository.findById(user.getId()).orElseThrow();
-        assertThat(updated.isCanCreateProject()).isTrue();
+    @Test
+    void projectMember_cannotCreateProject() {
+        UserDto.CreateRequest req = new UserDto.CreateRequest();
+        req.setEmail("mem@test.com");
+        req.setPassword("pass");
+        req.setDisplayName("成員");
+        req.setRole(User.Role.PROJECT_MEMBER);
+        User user = userService.createUser(req);
+
+        assertThat(user.canCreateProject()).isFalse();
     }
 
     @Test
@@ -64,7 +73,7 @@ class UserServiceTest {
         req.setEmail("old@test.com");
         req.setPassword("pass");
         req.setDisplayName("舊員工");
-        req.setRole(User.Role.MEMBER);
+        req.setRole(User.Role.PROJECT_MEMBER);
         User user = userService.createUser(req);
 
         userService.disableUser(user.getId());

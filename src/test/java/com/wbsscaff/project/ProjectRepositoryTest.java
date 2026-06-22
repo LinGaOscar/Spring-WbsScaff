@@ -25,7 +25,7 @@ class ProjectRepositoryTest {
     void findByDepartmentId_returnsProjects() {
         Department dept = new Department(); dept.setName("IT"); deptRepository.save(dept);
         User owner = new User(); owner.setEmail("o@test.com"); owner.setPasswordHash("x");
-        owner.setDisplayName("Owner"); owner.setRole(User.Role.MEMBER); userRepository.save(owner);
+        owner.setDisplayName("Owner"); owner.setRole(User.Role.PROJECT_MEMBER); userRepository.save(owner);
 
         Project p = new Project(); p.setName("測試專案");
         p.setDepartment(dept); p.setOwner(owner); p.setCreatedBy(owner);

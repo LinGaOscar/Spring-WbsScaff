@@ -33,7 +33,7 @@ class ProjectControllerTest {
             u.setEmail("admin@test.com");
             u.setPasswordHash("x");
             u.setDisplayName("Admin User");
-            u.setRole(User.Role.ADMIN);
+            u.setRole(User.Role.SECTION_CHIEF);
             userRepository.save(u);
         }
     }
@@ -46,7 +46,7 @@ class ProjectControllerTest {
     }
 
     @Test
-    @WithMockUser(username = "admin@test.com", roles = "ADMIN")
+    @WithMockUser(username = "admin@test.com", roles = "SECTION_CHIEF")
     void listProjects_authenticated_returns200() throws Exception {
         mockMvc.perform(get("/api/projects"))
             .andExpect(status().isOk())

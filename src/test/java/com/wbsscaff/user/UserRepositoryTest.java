@@ -28,7 +28,7 @@ class UserRepositoryTest {
         user.setPasswordHash("hashed");
         user.setDisplayName("Admin");
         user.setDepartment(dept);
-        user.setRole(User.Role.ADMIN);
+        user.setRole(User.Role.SECTION_CHIEF);
         userRepository.save(user);
 
         Optional<User> found = userRepository.findByEmail("admin@example.com");

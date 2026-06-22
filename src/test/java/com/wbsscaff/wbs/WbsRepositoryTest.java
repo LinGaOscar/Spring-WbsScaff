@@ -27,7 +27,7 @@ class WbsRepositoryTest {
     void findByProjectId_returnsNodes() {
         Department dept = new Department(); dept.setName("IT"); deptRepository.save(dept);
         User user = new User(); user.setEmail("u@t.com"); user.setPasswordHash("x");
-        user.setDisplayName("U"); user.setRole(User.Role.MEMBER); userRepository.save(user);
+        user.setDisplayName("U"); user.setRole(User.Role.PROJECT_MEMBER); userRepository.save(user);
         Project proj = new Project(); proj.setName("P"); proj.setOwner(user);
         proj.setCreatedBy(user); proj.setDepartment(dept); projectRepository.save(proj);
 

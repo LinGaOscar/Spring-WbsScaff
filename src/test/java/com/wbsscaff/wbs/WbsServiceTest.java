@@ -43,7 +43,7 @@ class WbsServiceTest {
         Department dept = new Department(); dept.setName("IT"); deptRepository.save(dept);
         User user = new User(); user.setEmail("u@t.com");
         user.setPasswordHash(passwordEncoder.encode("p")); user.setDisplayName("U");
-        user.setRole(User.Role.MEMBER); userRepository.save(user);
+        user.setRole(User.Role.PROJECT_MEMBER); userRepository.save(user);
         project = new Project(); project.setName("P");
         project.setOwner(user); project.setCreatedBy(user);
         project.setDepartment(dept); projectRepository.save(project);

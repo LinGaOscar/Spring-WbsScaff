@@ -31,7 +31,7 @@ class AuthControllerTest {
         user.setEmail("admin@test.com");
         user.setPasswordHash(passwordEncoder.encode("password"));
         user.setDisplayName("Admin");
-        user.setRole(User.Role.ADMIN);
+        user.setRole(User.Role.SECTION_CHIEF);
         userRepository.save(user);
     }
 

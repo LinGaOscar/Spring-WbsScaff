@@ -32,7 +32,7 @@ class TemplateServiceTest {
 
         user = new User(); user.setEmail("u@t.com");
         user.setPasswordHash(passwordEncoder.encode("p"));
-        user.setDisplayName("U"); user.setRole(User.Role.MEMBER);
+        user.setDisplayName("U"); user.setRole(User.Role.SECTION_CHIEF);
         userRepository.save(user);
 
         systemTpl = new WbsTemplate();
@@ -55,18 +55,14 @@ class TemplateServiceTest {
 
     @Test
     void deleteSystemTemplate_throws() {
-        assertThatThrownBy(() -> templateService.deleteCustom(systemTpl.getId(), user.getId()))
+        assertThatThrownBy(() -> templateService.deleteCustom(systemTpl.getId(), user))
             .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
-    void setDefault_onlyOneDefaultPerUser() {
-        WbsTemplate t1 = templateService.cloneSystem(systemTpl.getId(), user.getId());
-        WbsTemplate t2 = templateService.cloneSystem(systemTpl.getId(), user.getId());
-        templateService.setDefault(t1.getId(), user.getId());
-        templateService.setDefault(t2.getId(), user.getId());
-
-        assertThat(templateRepository.findByOwnerIdAndIsSystemFalse(user.getId())
-            .stream().filter(WbsTemplate::isDefault).count()).isEqualTo(1);
+    void cloneSystem_isNotSystemTemplate() {
+        WbsTemplate clone = templateService.cloneSystem(systemTpl.getId(), user.getId());
+        assertThat(clone.isSystem()).isFalse();
+        assertThat(clone.isDefault()).isFalse();
     }
 }

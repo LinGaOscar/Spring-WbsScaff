@@ -38,12 +38,12 @@ class ProjectServiceTest {
 
         manager = new User(); manager.setEmail("mgr@t.com");
         manager.setPasswordHash(passwordEncoder.encode("p")); manager.setDisplayName("Manager");
-        manager.setRole(User.Role.MEMBER); manager.setCanCreateProject(true);
+        manager.setRole(User.Role.SECTION_CHIEF); manager.setDepartment(dept);
         userRepository.save(manager);
 
         member = new User(); member.setEmail("mem@t.com");
         member.setPasswordHash(passwordEncoder.encode("p")); member.setDisplayName("Member");
-        member.setRole(User.Role.MEMBER); userRepository.save(member);
+        member.setRole(User.Role.PROJECT_MEMBER); userRepository.save(member);
     }
 
     @Test
