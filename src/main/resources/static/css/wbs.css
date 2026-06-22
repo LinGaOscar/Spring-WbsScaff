@@ -2,8 +2,11 @@
 .wbs-actions { display:flex; gap:0.5rem; }
 .wbs-node-wrap { margin-left: 1.5rem; }
 .wbs-node-wrap:first-child { margin-left: 0; }
-.wbs-node { display:flex; align-items:center; gap:0.5rem; padding:0.5rem 0.75rem; background:#fff; border-radius:6px; margin-bottom:4px; border:1px solid #f0f0f0; min-height:40px; }
-.wbs-node:hover { border-color:#b2bec3; }
+/* 根節點：較深背景 + 左側藍色強調線，視覺上明顯區隔父層 */
+.wbs-node-wrap:first-child > .wbs-node,
+.wbs-tree > .wbs-node-wrap > .wbs-node { background:#eef4fb; border:1px solid #b2d4f0; border-left:4px solid #0984e3; font-weight:600; }
+.wbs-node { display:flex; align-items:center; gap:0.5rem; padding:0.5rem 0.75rem; background:#fff; border-radius:6px; margin-bottom:6px; border:1px solid #dfe6e9; min-height:40px; }
+.wbs-node:hover { border-color:#74b9ff; box-shadow:0 1px 4px rgba(9,132,227,0.1); }
 .wbs-toggle { cursor:pointer; width:1.2rem; flex-shrink:0; color:#636e72; }
 .wbs-title { flex:1; font-size:0.9rem; cursor:default; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:80px; }
 .wbs-title-input { flex:1; min-width:80px; border:none; border-bottom:2px solid #0984e3; outline:none; font-size:0.9rem; padding:0; }
@@ -18,7 +21,7 @@
 .wbs-node-actions { display:flex; gap:4px; opacity:0; transition:opacity 0.1s; }
 .wbs-node:hover .wbs-node-actions { opacity:1; }
 .wbs-node-actions button { font-size:0.75rem; padding:2px 6px; border:1px solid #b2bec3; border-radius:3px; cursor:pointer; background:#fff; }
-.wbs-children { margin-left:1.5rem; border-left:2px solid #f0f0f0; padding-left:0.5rem; }
+.wbs-children { margin-left:1.5rem; border-left:3px solid #b2d4f0; padding-left:0.75rem; margin-top:4px; }
 .wbs-node.drag-over { border-color:#0984e3; background:#e8f4fd; box-shadow:0 0 0 2px rgba(9,132,227,0.25); }
 
 /* 行動版封鎖：覆蓋整個頁面 */
