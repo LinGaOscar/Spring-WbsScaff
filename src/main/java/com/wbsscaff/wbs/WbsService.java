@@ -33,6 +33,10 @@ public class WbsService {
             if (!parent.getProject().getId().equals(projectId)) {
                 throw new SecurityException("父節點不屬於此專案");
             }
+            // WBS 最多兩層：父節點必須是根節點（無 parent）
+            if (parent.getParentId() != null) {
+                throw new IllegalStateException("WBS 最多兩層，不允許在子節點下新增節點");
+            }
             node.setParentId(req.getParentId());
         }
         node.setSortOrder(req.getSortOrder() != null ? req.getSortOrder() : 0);

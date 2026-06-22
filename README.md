@@ -55,7 +55,7 @@ PostgreSQL（資料 + Session 儲存）
 # 1. 複製 .env 並設定資料庫密碼
 cp .env.example .env   # 編輯 DB_PASSWORD
 
-# 2. 啟動 PostgreSQL
+# 2. 啟動 PostgreSQL（首次自動執行 db/init/ 建立 schema 與種子資料）
 docker compose up -d
 
 # 3. 編譯並啟動應用
@@ -64,6 +64,8 @@ mvn spring-boot:run
 ```
 
 預設埠：`http://localhost:8080`
+
+> **重置資料庫**：`docker compose down -v && docker compose up -d`
 
 ---
 

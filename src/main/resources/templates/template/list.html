@@ -12,7 +12,7 @@
       <h2 style="margin-bottom:1.5rem">模板管理</h2>
       <div v-if="error" class="alert alert-error">{{ error }}</div>
 
-      <h3 style="margin-bottom:0.75rem">系統模板</h3>
+      <h3 id="system" style="margin-bottom:0.75rem">主模板（系統）</h3>
       <table class="data-table" style="margin-bottom:2rem">
         <thead><tr><th>名稱</th><th>說明</th><th>操作</th></tr></thead>
         <tbody>
@@ -24,7 +24,7 @@
         </tbody>
       </table>
 
-      <h3 style="margin-bottom:0.75rem">我的自訂模板</h3>
+      <h3 id="custom" style="margin-bottom:0.75rem">子模板（自訂）</h3>
       <table class="data-table" v-if="templates.custom?.length">
         <thead><tr><th>名稱</th><th>預設</th><th>操作</th></tr></thead>
         <tbody>

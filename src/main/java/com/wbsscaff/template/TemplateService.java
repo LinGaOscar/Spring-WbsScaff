@@ -129,15 +129,49 @@ public class TemplateService {
         Project project = projectRepository.findById(projectId)
             .orElseThrow(() -> new EntityNotFoundException("專案不存在"));
         List<WbsTemplateNode> nodes = nodeRepository.findByTemplate_IdOrderBySortOrder(templateId);
-        Map<Long, Long> idMap = new HashMap<>();
+
+        // 建立父節點對照表，用於壓平超過兩層的結構
+        Map<Long, Long> tplParentMap = new HashMap<>();
+        for (WbsTemplateNode n : nodes) {
+            if (n.getParentId() != null) tplParentMap.put(n.getId(), n.getParentId());
+        }
+        // 每個非根節點找到其最上層根節點（level 1）
+        Map<Long, Long> rootAncestor = new HashMap<>();
+        for (WbsTemplateNode n : nodes) {
+            if (n.getParentId() == null) {
+                rootAncestor.put(n.getId(), null);
+            } else {
+                Long cur = n.getParentId();
+                while (tplParentMap.containsKey(cur)) cur = tplParentMap.get(cur);
+                rootAncestor.put(n.getId(), cur);
+            }
+        }
+
+        Map<Long, Long> tplIdToWbsId = new HashMap<>();
+        // 第一輪：建立根節點
         for (WbsTemplateNode tNode : nodes) {
-            WbsNode wNode = new WbsNode();
-            wNode.setProject(project);
-            wNode.setTitle(tNode.getTitle());
-            wNode.setSortOrder(tNode.getSortOrder());
-            if (tNode.getParentId() != null) wNode.setParentId(idMap.get(tNode.getParentId()));
-            wbsRepository.save(wNode);
-            idMap.put(tNode.getId(), wNode.getId());
+            if (tNode.getParentId() == null) {
+                WbsNode wNode = new WbsNode();
+                wNode.setProject(project);
+                wNode.setTitle(tNode.getTitle());
+                wNode.setSortOrder(tNode.getSortOrder());
+                wbsRepository.save(wNode);
+                tplIdToWbsId.put(tNode.getId(), wNode.getId());
+            }
+        }
+        // 第二輪：所有非根節點一律壓平為 level 2（父節點 = 其根祖先）
+        for (WbsTemplateNode tNode : nodes) {
+            if (tNode.getParentId() != null) {
+                Long rootTplId = rootAncestor.get(tNode.getId());
+                Long parentWbsId = tplIdToWbsId.get(rootTplId);
+                WbsNode wNode = new WbsNode();
+                wNode.setProject(project);
+                wNode.setTitle(tNode.getTitle());
+                wNode.setSortOrder(tNode.getSortOrder());
+                wNode.setParentId(parentWbsId);
+                wbsRepository.save(wNode);
+                tplIdToWbsId.put(tNode.getId(), wNode.getId());
+            }
         }
     }
 

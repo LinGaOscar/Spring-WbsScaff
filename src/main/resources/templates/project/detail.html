@@ -64,8 +64,13 @@
               <button class="btn btn-sm" @click="showTemplateModal=true" v-if="!hasNodes">套用模板</button>
               <button class="btn btn-sm" @click="saveAsTemplate">另存為模板</button>
             </template>
-            <button class="btn btn-sm" @click="exportCsv">匯出 CSV</button>
-            <button class="btn btn-sm" @click="exportXlsx">匯出 XLSX</button>
+            <div class="export-dropdown">
+              <button class="btn btn-sm">匯出 ▾</button>
+              <div class="dropdown-menu">
+                <button class="dropdown-item" @click="exportCsv()">CSV</button>
+                <button class="dropdown-item" @click="exportXlsx()">XLSX</button>
+              </div>
+            </div>
           </div>
         </div>
 

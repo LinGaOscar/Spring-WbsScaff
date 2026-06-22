@@ -12,7 +12,7 @@
         <div class="wbs-node-wrap">
           <div class="wbs-node" :class="['status-'+node.status.toLowerCase(), {'drag-over': isDragOver}]"
                @mouseenter="onMouseEnter(node.id)" @mouseleave="onMouseLeave()"
-               @dragover.prevent="isDragOver=!locked"
+               @dragover.prevent="isDragOver=(!locked && !node.parentId)"
                @dragleave="isDragOver=false"
                @drop.stop="onNodeDrop($event)">
             <span class="wbs-toggle" @click="node._open=!node._open">
@@ -39,7 +39,7 @@
                    placeholder="備註" :readonly="locked"
                    @blur="!locked && commitField('notes', editNotes)" />
             <div class="wbs-node-actions" v-if="!locked">
-              <button @click="$emit('add-child', node)">+ 子</button>
+              <button v-if="!node.parentId" @click="$emit('add-child', node)">+ 子</button>
               <button @click="$emit('delete', node)">刪</button>
             </div>
             <div class="cursor-indicators">
@@ -102,10 +102,10 @@
             c => c.hoveringNodeId === nodeId || c.editingNodeId === nodeId
           );
         }
-        // 快速子項拖曳到此節點：新增為子節點
+        // 快速子項拖曳到此節點：只允許根節點接收（最多兩層）
         function onNodeDrop(event) {
           isDragOver.value = false;
-          if (props.locked) return;
+          if (props.locked || props.node.parentId) return;
           const title = event.dataTransfer.getData('text/plain');
           if (!title) return;
           emit('drop-item', { parentId: props.node.id, title });
@@ -164,7 +164,7 @@
 
         async function loadTemplates() {
           const d = await api('/api/templates');
-          if (d.success) availableTemplates.value = d.data;
+          if (d.success) availableTemplates.value = [...(d.data.system||[]), ...(d.data.custom||[])];
         }
 
         // 拖曳開始：把 item title 寫入 dataTransfer
@@ -267,6 +267,7 @@
         }
 
         async function addChild(parent) {
+          if (parent.parentId) return; // 只允許根節點有子節點
           const title = prompt('子節點名稱');
           if (!title) return;
           const siblings = flatNodes.value.filter(n => n.parentId === parent.id);
