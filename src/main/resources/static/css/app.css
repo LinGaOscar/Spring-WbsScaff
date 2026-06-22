@@ -7,8 +7,9 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 .layout { display: flex; min-height: calc(100vh - 56px - 48px); }
 .sidebar { width: 220px; background: #fff; border-right: 1px solid #dfe6e9; padding: 1rem 0; flex-shrink: 0; }
 .sidebar ul { list-style: none; }
-.sidebar ul li a { display: block; padding: 0.75rem 1.5rem; color: #2d3436; text-decoration: none; }
+.sidebar ul li a { display: block; padding: 0.65rem 1.5rem; color: #2d3436; text-decoration: none; font-size: 0.9rem; }
 .sidebar ul li a:hover { background: #f5f6fa; color: #0984e3; }
+.sidebar-group-label { padding: 0.6rem 1.5rem 0.3rem; font-size: 0.72rem; font-weight: 700; color: #b2bec3; text-transform: uppercase; letter-spacing: 0.06em; margin-top: 0.5rem; }
 .main-content { flex: 1; padding: 2rem; }
 .footer { height: 48px; background: #dfe6e9; display: flex; align-items: center; justify-content: center; font-size: 0.85rem; color: #636e72; }
 .login-page { display: flex; justify-content: center; align-items: center; min-height: 100vh; }
@@ -50,14 +51,3 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 .export-dropdown:hover .dropdown-menu { display:block; }
 .dropdown-item { display:block; width:100%; padding:0.45rem 1rem; text-align:left; background:none; border:none; cursor:pointer; font-size:0.85rem; color:#2d3436; }
 .dropdown-item:hover { background:#f5f6fa; }
-/* Sidebar 模板子選單 */
-.sidebar details { list-style:none; }
-.sidebar details>summary { display:block; padding:0.75rem 1.5rem; color:#2d3436; cursor:pointer; list-style:none; user-select:none; }
-.sidebar details>summary:hover { background:#f5f6fa; color:#0984e3; }
-.sidebar details>summary::-webkit-details-marker { display:none; }
-.sidebar details[open]>summary { color:#0984e3; }
-.sidebar details>summary::after { content:' ▸'; font-size:0.7rem; }
-.sidebar details[open]>summary::after { content:' ▾'; }
-.sidebar details ul { background:#f8f9fa; }
-.sidebar details ul li a { padding:0.6rem 1.5rem 0.6rem 2.5rem; display:block; font-size:0.9rem; color:#636e72; text-decoration:none; }
-.sidebar details ul li a:hover { background:#f5f6fa; color:#0984e3; }

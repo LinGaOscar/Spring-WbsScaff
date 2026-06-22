@@ -3,6 +3,17 @@
 <head>
   <meta charset="UTF-8"><title>主模板管理</title>
   <link rel="stylesheet" th:href="@{/css/app.css}">
+  <style>
+    .tpl-card { background:#fff; border-radius:8px; padding:1rem 1.25rem; margin-bottom:0.75rem; box-shadow:0 1px 4px rgba(0,0,0,0.08); }
+    .tpl-card-header { display:flex; justify-content:space-between; align-items:center; cursor:pointer; }
+    .tpl-card-name { font-weight:600; font-size:1rem; }
+    .tpl-card-desc { font-size:0.85rem; color:#636e72; margin-top:0.2rem; }
+    .tpl-preview { margin-top:0.75rem; border-top:1px solid #f0f0f0; padding-top:0.75rem; }
+    .tpl-node { font-size:0.85rem; padding:0.25rem 0; color:#2d3436; }
+    .tpl-node-root { font-weight:600; color:#0984e3; margin-top:0.4rem; }
+    .tpl-node-child { padding-left:1.5rem; color:#636e72; }
+    .tpl-toggle { font-size:0.75rem; color:#b2bec3; }
+  </style>
 </head>
 <body>
   <div th:replace="~{fragments/header :: header}"></div>
@@ -13,20 +24,29 @@
         <h2>主模板管理</h2>
       </div>
       <div v-if="error" class="alert alert-error">{{ error }}</div>
+      <p v-if="!templates.length" style="color:#636e72">尚無系統模板。</p>
 
-      <table class="data-table" v-if="templates.length">
-        <thead><tr><th>名稱</th><th>說明</th><th>節點數</th></tr></thead>
-        <tbody>
-          <tr v-for="t in templates" :key="t.id">
-            <td>{{ t.name }}</td>
-            <td>{{ t.description || '-' }}</td>
-            <td>{{ t.nodeCount ?? '-' }}</td>
-          </tr>
-        </tbody>
-      </table>
-      <p v-else style="color:#636e72">尚無系統模板。</p>
+      <div v-for="t in templates" :key="t.id" class="tpl-card">
+        <div class="tpl-card-header" @click="togglePreview(t.id)">
+          <div>
+            <div class="tpl-card-name">{{ t.name }}</div>
+            <div class="tpl-card-desc" v-if="t.description">{{ t.description }}</div>
+          </div>
+          <span class="tpl-toggle">{{ expanded.has(t.id) ? '▲ 收合' : '▼ 預覽節點' }}</span>
+        </div>
 
-      <p style="margin-top:1.5rem;font-size:0.85rem;color:#636e72">
+        <div v-if="expanded.has(t.id)" class="tpl-preview">
+          <div v-if="!previewData[t.id]" style="color:#b2bec3;font-size:0.85rem">載入中...</div>
+          <template v-else>
+            <div v-for="node in previewData[t.id]" :key="node.id"
+                 :class="node.parentId ? 'tpl-node tpl-node-child' : 'tpl-node tpl-node-root'">
+              {{ node.parentId ? '└ ' : '' }}{{ node.title }}
+            </div>
+          </template>
+        </div>
+      </div>
+
+      <p style="margin-top:1.5rem;font-size:0.82rem;color:#b2bec3">
         系統模板由管理員透過資料庫維護。自訂快速子項請至「子模板管理」。
       </p>
     </main>
@@ -39,20 +59,38 @@
     const CSRF_TOKEN  = /*[[${_csrf.token}]]*/ '';
   </script>
   <script>
-    const { createApp, ref, onMounted } = Vue;
+    const { createApp, ref, reactive, onMounted } = Vue;
+    const api = (url) => fetch(url).then(r => r.json());
+
     createApp({
       setup() {
-        const templates = ref([]);
-        const error = ref('');
+        const templates   = ref([]);
+        const expanded    = ref(new Set());
+        const previewData = reactive({});
+        const error       = ref('');
 
         async function load() {
-          const d = await fetch('/api/templates').then(r => r.json());
+          const d = await api('/api/templates');
           if (d.success) templates.value = d.data.system || [];
           else error.value = '載入失敗';
         }
 
+        async function togglePreview(id) {
+          const s = new Set(expanded.value);
+          if (s.has(id)) {
+            s.delete(id);
+          } else {
+            s.add(id);
+            if (!previewData[id]) {
+              const d = await api(`/api/templates/${id}`);
+              if (d.success) previewData[id] = d.data.nodes || [];
+            }
+          }
+          expanded.value = s;
+        }
+
         onMounted(load);
-        return { templates, error };
+        return { templates, expanded, previewData, error, togglePreview };
       }
     }).mount('#app');
   </script>

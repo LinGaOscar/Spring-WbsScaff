@@ -25,6 +25,13 @@ public class ProjectController {
     @GetMapping("/projects")
     public String projectsPage() { return "project/list"; }
 
+    @GetMapping("/admin/members")
+    public String membersPage(@AuthenticationPrincipal UserDetails userDetails) {
+        User user = userRepository.findByEmail(userDetails.getUsername()).orElseThrow();
+        if (!user.canManageSection()) return "redirect:/projects";
+        return "admin/members";
+    }
+
     @GetMapping("/projects/{id}")
     public String projectDetailPage(@PathVariable Long id, Model model,
             @AuthenticationPrincipal UserDetails userDetails) {

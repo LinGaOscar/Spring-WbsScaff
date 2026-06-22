@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <title>成員管理</title>
+  <link rel="stylesheet" th:href="@{/css/app.css}">
+  <style>
+    .project-section { background:#fff; border-radius:8px; padding:1.25rem 1.5rem; margin-bottom:1rem; box-shadow:0 1px 4px rgba(0,0,0,0.08); }
+    .project-section-header { display:flex; justify-content:space-between; align-items:center; cursor:pointer; user-select:none; }
+    .project-section-header h3 { font-size:1rem; margin:0; }
+    .project-section-header .toggle { color:#636e72; font-size:0.8rem; }
+    .project-members { margin-top:1rem; border-top:1px solid #f0f0f0; padding-top:1rem; }
+    .member-tag { display:inline-flex; align-items:center; gap:0.4rem; background:#f5f6fa; border:1px solid #dfe6e9; border-radius:20px; padding:0.3rem 0.75rem; font-size:0.85rem; margin:0.25rem; }
+    .member-tag .remove-btn { background:none; border:none; cursor:pointer; color:#b2bec3; font-size:1rem; line-height:1; padding:0; }
+    .member-tag .remove-btn:hover { color:#e17055; }
+    .add-member-row { display:flex; gap:0.5rem; margin-top:0.75rem; align-items:center; }
+    .add-member-row select { flex:1; padding:0.4rem 0.6rem; border:1px solid #b2bec3; border-radius:4px; font-size:0.85rem; }
+  </style>
+</head>
+<body>
+  <div th:replace="~{fragments/header :: header}"></div>
+  <div class="layout">
+    <div th:replace="~{fragments/sidebar :: sidebar}"></div>
+    <main class="main-content" id="app">
+      <div class="page-header">
+        <h2>成員管理</h2>
+      </div>
+      <div v-if="error" class="alert alert-error">{{ error }}</div>
+      <p v-if="!projects.length" style="color:#636e72">尚無可管理的專案。</p>
+
+      <div v-for="proj in projects" :key="proj.id" class="project-section">
+        <div class="project-section-header" @click="toggle(proj.id)">
+          <h3>{{ proj.name }}
+            <span style="font-size:0.8rem;color:#636e72;font-weight:400;margin-left:0.5rem">
+              {{ proj.departmentName }} · {{ proj.ownerName }}
+            </span>
+          </h3>
+          <span class="toggle">{{ expanded.has(proj.id) ? '▲' : '▼' }}</span>
+        </div>
+
+        <div v-if="expanded.has(proj.id)" class="project-members">
+          <!-- 現有成員 -->
+          <div>
+            <span v-for="m in memberMap[proj.id] || []" :key="m.userId" class="member-tag">
+              {{ m.displayName }}
+              <button class="remove-btn" @click="removeMember(proj.id, m.userId)" title="移除">×</button>
+            </span>
+            <span v-if="!(memberMap[proj.id]?.length)" style="color:#b2bec3;font-size:0.85rem">尚無成員</span>
+          </div>
+          <!-- 新增成員 -->
+          <div class="add-member-row">
+            <select v-model="addingUser[proj.id]">
+              <option value="">— 選擇使用者 —</option>
+              <option v-for="u in availableUsers(proj.id)" :key="u.id" :value="u.id">
+                {{ u.displayName }}（{{ u.departmentName || '無部門' }}）
+              </option>
+            </select>
+            <button class="btn btn-sm btn-primary" style="width:auto"
+                    @click="addMember(proj.id)" :disabled="!addingUser[proj.id]">新增</button>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+  <div th:replace="~{fragments/footer :: footer}"></div>
+
+  <script th:src="@{/js/vue.global.prod.min.js}"></script>
+  <script th:inline="javascript">
+    const CSRF_HEADER = /*[[${_csrf.headerName}]]*/ 'X-CSRF-TOKEN';
+    const CSRF_TOKEN  = /*[[${_csrf.token}]]*/ '';
+  </script>
+  <script>
+    const { createApp, ref, reactive, computed, onMounted } = Vue;
+    const h   = () => ({ 'Content-Type':'application/json', [CSRF_HEADER]:CSRF_TOKEN });
+    const api = (url, opt={}) => fetch(url, { headers: h(), ...opt }).then(r => r.json());
+
+    createApp({
+      setup() {
+        const projects   = ref([]);
+        const allUsers   = ref([]);
+        const memberMap  = reactive({});   // projectId → member[]
+        const addingUser = reactive({});   // projectId → userId
+        const expanded   = ref(new Set());
+        const error      = ref('');
+
+        async function load() {
+          const [pd, ud] = await Promise.all([
+            api('/api/projects'),
+            api('/api/users')
+          ]);
+          if (pd.success) projects.value = pd.data;
+          if (ud.success) allUsers.value = ud.data;
+        }
+
+        async function loadMembers(projectId) {
+          const d = await api(`/api/projects/${projectId}/members`);
+          if (d.success) memberMap[projectId] = d.data;
+        }
+
+        function toggle(projectId) {
+          const s = new Set(expanded.value);
+          if (s.has(projectId)) {
+            s.delete(projectId);
+          } else {
+            s.add(projectId);
+            if (!memberMap[projectId]) loadMembers(projectId);
+          }
+          expanded.value = s;
+        }
+
+        function availableUsers(projectId) {
+          const memberIds = new Set((memberMap[projectId] || []).map(m => m.userId));
+          return allUsers.value.filter(u => !memberIds.has(u.id));
+        }
+
+        async function addMember(projectId) {
+          const userId = addingUser[projectId];
+          if (!userId) return;
+          const d = await api(`/api/projects/${projectId}/members`, {
+            method: 'POST',
+            body: JSON.stringify({ userId })
+          });
+          if (d.success) {
+            addingUser[projectId] = '';
+            loadMembers(projectId);
+          } else {
+            error.value = d.message || '新增失敗';
+          }
+        }
+
+        async function removeMember(projectId, userId) {
+          if (!confirm('確定移除此成員？')) return;
+          await api(`/api/projects/${projectId}/members/${userId}`, { method: 'DELETE' });
+          loadMembers(projectId);
+        }
+
+        onMounted(load);
+        return { projects, memberMap, addingUser, expanded, error,
+                 toggle, availableUsers, addMember, removeMember };
+      }
+    }).mount('#app');
+  </script>
+</body>
+</html>
