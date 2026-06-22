@@ -5,8 +5,11 @@
 .wbs-node { display:flex; align-items:center; gap:0.5rem; padding:0.5rem 0.75rem; background:#fff; border-radius:6px; margin-bottom:4px; border:1px solid #f0f0f0; min-height:40px; }
 .wbs-node:hover { border-color:#b2bec3; }
 .wbs-toggle { cursor:pointer; width:1.2rem; flex-shrink:0; color:#636e72; }
-.wbs-title { flex:1; font-size:0.9rem; cursor:default; }
-.wbs-title-input { flex:1; border:none; border-bottom:2px solid #0984e3; outline:none; font-size:0.9rem; padding:0; }
+.wbs-title { flex:1; font-size:0.9rem; cursor:default; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:80px; }
+.wbs-title-input { flex:1; min-width:80px; border:none; border-bottom:2px solid #0984e3; outline:none; font-size:0.9rem; padding:0; }
+.wbs-field-input { flex-shrink:0; font-size:0.82rem; border:1px solid #e0e0e0; border-radius:3px; padding:2px 4px; background:#fafafa; }
+.wbs-field-input[type="text"] { width:88px; }
+.wbs-field-input[type="date"] { width:116px; }
 .wbs-status-badge { font-size:0.75rem; border:1px solid; border-radius:3px; padding:2px 6px; cursor:pointer; white-space:nowrap; }
 .status-not_started .wbs-status-badge { color:#636e72; border-color:#636e72; }
 .status-in_progress .wbs-status-badge { color:#e67e22; border-color:#e67e22; }
@@ -40,8 +43,8 @@
 .panel-hint { font-size:0.72rem; color:#b2bec3; line-height:1.4; margin-top:0.75rem; padding:0 0.25rem; }
 
 /* 主編輯區 */
-.wbs-main { flex:1; padding:2rem; overflow-y:auto; min-width:0; overflow-x:auto; }
-.wbs-node { min-width:600px; }
+.wbs-main { flex:1; padding:2rem; overflow:auto; min-width:0; }
+.wbs-tree { min-width:700px; }
 
 /* WBS 樹 drop zone 高亮 */
 .wbs-tree.drag-over,.wbs-empty-drop.drag-over { outline:2px dashed #0984e3; outline-offset:4px; background:rgba(9,132,227,0.03); border-radius:6px; }
