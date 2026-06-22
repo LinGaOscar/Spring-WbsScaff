@@ -40,10 +40,13 @@ public class ProjectService {
     public List<Project> listForUser(User user) {
         return switch (user.getRole()) {
             case DIRECTOR -> {
-                // 部長查看本部下所有科的專案
+                // 部長自建的專案（掛在部層級）+ 下屬科的所有專案
+                List<Project> own = projectRepository.findByDepartmentId(user.getDepartment().getId());
                 List<Long> sectionIds = departmentRepository.findByParentId(user.getDepartment().getId())
                     .stream().map(Department::getId).toList();
-                yield sectionIds.isEmpty() ? List.of() : projectRepository.findBySectionIds(sectionIds);
+                List<Project> sectionProjects = sectionIds.isEmpty()
+                    ? List.of() : projectRepository.findBySectionIds(sectionIds);
+                yield java.util.stream.Stream.concat(own.stream(), sectionProjects.stream()).toList();
             }
             case SECTION_CHIEF, PROJECT_LEADER ->
                 // 科長/Leader 查本科所有專案
@@ -94,7 +97,9 @@ public class ProjectService {
     public boolean canWriteProject(Long projectId, User user) {
         Project project = getById(projectId);
         return switch (user.getRole()) {
-            case DIRECTOR -> false; // 部長唯讀
+            case DIRECTOR ->
+                // 部長只能寫自己建立的專案（owner），下屬科的專案僅能讀
+                project.getOwner() != null && project.getOwner().getId().equals(user.getId());
             case SECTION_CHIEF ->
                 // 科長可寫本科所有專案
                 project.getDepartment() != null
@@ -110,11 +115,12 @@ public class ProjectService {
         Project project = getById(projectId);
         return switch (user.getRole()) {
             case DIRECTOR -> {
-                // 部長可讀本部下所有科的專案
                 if (project.getDepartment() == null) yield false;
-                Department section = project.getDepartment();
-                yield section.getParent() != null
-                    && section.getParent().getId().equals(user.getDepartment().getId());
+                Department dept = project.getDepartment();
+                // 自己建立的部層級專案，或下屬科的專案
+                yield dept.getId().equals(user.getDepartment().getId())
+                    || (dept.getParent() != null
+                        && dept.getParent().getId().equals(user.getDepartment().getId()));
             }
             case SECTION_CHIEF, PROJECT_LEADER ->
                 // 科長/Leader 可讀本科所有專案

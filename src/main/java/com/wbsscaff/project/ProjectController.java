@@ -33,8 +33,8 @@ public class ProjectController {
             return "redirect:/projects";
         }
         Project project = projectService.getById(id);
-        // 部長僅能唯讀，不得編輯WBS
-        boolean readOnly = user.getRole() == User.Role.DIRECTOR;
+        // 無寫入權限（含部長看下屬科專案）則唯讀
+        boolean readOnly = !projectService.canWriteProject(id, user);
         model.addAttribute("project", project);
         model.addAttribute("readOnly", readOnly);
         return "project/detail";
@@ -136,13 +136,14 @@ public class ProjectController {
             @PathVariable Long id,
             @RequestBody Map<String, Long> body,
             @AuthenticationPrincipal UserDetails userDetails) {
-        // 只有科長才能變更專案負責人
+        // 科長（本科專案）或專案 owner（含部長自建）可變更負責人
         User caller = userRepository.findByEmail(userDetails.getUsername()).orElseThrow();
         Project project = projectService.getById(id);
         boolean isSectionChief = caller.getRole() == User.Role.SECTION_CHIEF
             && project.getDepartment() != null
             && project.getDepartment().getId().equals(caller.getDepartment().getId());
-        if (!isSectionChief) throw new SecurityException("只有科長可以變更負責人");
+        boolean isProjectOwner = project.getOwner().getId().equals(caller.getId());
+        if (!isSectionChief && !isProjectOwner) throw new SecurityException("無權變更負責人");
         projectService.changeOwner(id, body.get("userId"));
         return ApiResponse.ok(null);
     }

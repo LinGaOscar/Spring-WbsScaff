@@ -32,42 +32,38 @@ PostgreSQL（資料 + Session 儲存）
 
 ### 角色與權限
 
-| 角色 | 說明 | 建立專案 | 管理 WBS | 查閱所有資料 | 使用者管理 |
+組織架構：部（Division）→ 科（Section），部長屬於部、其餘角色屬於科。
+
+| 角色 | 說明 | 建立專案 | 編輯 WBS | 管理成員 | 跨科查閱 |
 |---|---|:---:|:---:|:---:|:---:|
-| `ADMIN` | 系統管理員 | ✅ | ✅ | ✅ | ✅ |
-| `IT_USER` | IT 稽核（唯讀） | ❌ | ❌（唯讀） | ✅ | ❌（唯讀） |
-| `MEMBER` | 一般成員 | 依設定 | 限所屬專案 | ❌ | ❌ |
+| `DIRECTOR` | 部長 | ✅（掛在部） | 僅自建專案 | 僅自建專案 | ✅（唯讀） |
+| `SECTION_CHIEF` | 科長 | ✅ | ✅（本科） | ✅（本科，可跨科加人） | ❌ |
+| `PROJECT_LEADER` | 專案 Leader | ✅ | 限加入的專案 | 限自己的專案 | ❌ |
+| `PROJECT_MEMBER` | 專案 Member | ❌ | 限加入的專案 | ❌ | ❌ |
 
 ### 部門隔離
 
-- `MEMBER` 只能看到**同部門**的專案與 WBS
-- 建立專案時自動繼承建立者所屬部門
-- 跨部門資料由 `IT_USER` 或 `ADMIN` 稽核
+- 專案建立時自動繼承建立者所屬科（部長建立則掛在部層級）
+- 科長、Leader 只能看本科專案；Member 只能看被加入的專案
+- 部長可查閱下屬所有科的專案，但不得編輯（自建的除外）
 
 ---
 
 ## 快速啟動
 
-### 本機開發
-
 ```bash
 # 1. 複製 .env 並設定資料庫密碼
 cp .env.example .env   # 編輯 DB_PASSWORD
 
-# 2. 啟動 PostgreSQL（Docker）
-docker compose up -d db
+# 2. 啟動 PostgreSQL
+docker compose up -d
 
-# 3. 啟動應用
+# 3. 編譯並啟動應用
+mvn clean install -DskipTests
 mvn spring-boot:run
 ```
 
 預設埠：`http://localhost:8080`
-
-### Docker 完整部署
-
-```bash
-docker compose up -d
-```
 
 ---
 

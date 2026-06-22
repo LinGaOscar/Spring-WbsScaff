@@ -37,9 +37,9 @@ public class User {
     @CreationTimestamp
     private LocalDateTime createdAt;
 
-    // 科長與專案Leader才能建立專案
+    // 部長、科長、Leader 都可建立專案
     public boolean canCreateProject() {
-        return role == Role.SECTION_CHIEF || role == Role.PROJECT_LEADER;
+        return role == Role.DIRECTOR || role == Role.SECTION_CHIEF || role == Role.PROJECT_LEADER;
     }
 
     // 科長與專案Leader才能管理本科的模板與快速子項
