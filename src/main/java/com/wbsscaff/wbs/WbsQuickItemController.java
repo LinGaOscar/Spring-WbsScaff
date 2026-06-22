@@ -40,6 +40,19 @@ public class WbsQuickItemController {
         return ApiResponse.ok(WbsQuickItemDto.Response.from(quickItemRepository.save(item)));
     }
 
+    @PutMapping("/api/quick-items/{id}")
+    @ResponseBody
+    @PreAuthorize("hasRole('ADMIN')")
+    public ApiResponse<WbsQuickItemDto.Response> update(
+            @PathVariable Long id,
+            @Valid @RequestBody WbsQuickItemDto.CreateRequest req) {
+        WbsQuickItem item = quickItemRepository.findById(id)
+            .orElseThrow(() -> new jakarta.persistence.EntityNotFoundException("快速子項不存在"));
+        item.setTitle(req.getTitle());
+        if (req.getCategory() != null) item.setCategory(req.getCategory());
+        return ApiResponse.ok(WbsQuickItemDto.Response.from(quickItemRepository.save(item)));
+    }
+
     @DeleteMapping("/api/quick-items/{id}")
     @ResponseBody
     @PreAuthorize("hasRole('ADMIN')")

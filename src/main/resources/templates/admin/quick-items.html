@@ -38,12 +38,29 @@
         </thead>
         <tbody>
           <tr v-for="item in items" :key="item.id">
-            <td>{{ item.title }}</td>
-            <td>{{ item.category || '-' }}</td>
-            <td>{{ item.sortOrder }}</td>
-            <td>
-              <button class="btn btn-sm btn-danger" @click="remove(item.id)">刪除</button>
-            </td>
+            <!-- 編輯模式：行內輸入 -->
+            <template v-if="editingId === item.id">
+              <td><input type="text" v-model="editTitle" @keyup.enter="saveEdit(item)"
+                         @keyup.escape="cancelEdit"
+                         style="width:100%;padding:4px 8px;border:1px solid #0984e3;border-radius:4px" /></td>
+              <td><input type="text" v-model="editCategory"
+                         style="width:100%;padding:4px 8px;border:1px solid #b2bec3;border-radius:4px" /></td>
+              <td>{{ item.sortOrder }}</td>
+              <td style="display:flex;gap:0.4rem">
+                <button class="btn btn-sm btn-primary" style="width:auto" @click="saveEdit(item)">儲存</button>
+                <button class="btn btn-sm" @click="cancelEdit">取消</button>
+              </td>
+            </template>
+            <!-- 檢視模式 -->
+            <template v-else>
+              <td>{{ item.title }}</td>
+              <td>{{ item.category || '-' }}</td>
+              <td>{{ item.sortOrder }}</td>
+              <td style="display:flex;gap:0.4rem">
+                <button class="btn btn-sm" @click="startEdit(item)">編輯</button>
+                <button class="btn btn-sm btn-danger" @click="remove(item.id)">刪除</button>
+              </td>
+            </template>
           </tr>
         </tbody>
       </table>
@@ -68,6 +85,9 @@
         const newTitle    = ref('');
         const newCategory = ref('');
         const error       = ref('');
+        const editingId   = ref(null);
+        const editTitle   = ref('');
+        const editCategory = ref('');
 
         async function load() {
           const d = await api('/api/quick-items');
@@ -84,13 +104,32 @@
               sortOrder: items.value.length
             })
           });
-          if (d.success) {
-            newTitle.value = '';
-            newCategory.value = '';
-            load();
-          } else {
-            error.value = d.message || '新增失敗';
-          }
+          if (d.success) { newTitle.value = ''; newCategory.value = ''; load(); }
+          else error.value = d.message || '新增失敗';
+        }
+
+        function startEdit(item) {
+          editingId.value   = item.id;
+          editTitle.value   = item.title;
+          editCategory.value = item.category || '';
+        }
+
+        function cancelEdit() {
+          editingId.value = null;
+        }
+
+        async function saveEdit(item) {
+          if (!editTitle.value.trim()) return;
+          const d = await api(`/api/quick-items/${item.id}`, {
+            method: 'PUT',
+            body: JSON.stringify({
+              title: editTitle.value.trim(),
+              category: editCategory.value.trim() || item.category,
+              sortOrder: item.sortOrder
+            })
+          });
+          if (d.success) { editingId.value = null; load(); }
+          else error.value = d.message || '儲存失敗';
         }
 
         async function remove(id) {
@@ -100,7 +139,9 @@
         }
 
         onMounted(load);
-        return { items, newTitle, newCategory, error, create, remove };
+        return { items, newTitle, newCategory, error,
+                 editingId, editTitle, editCategory,
+                 create, startEdit, cancelEdit, saveEdit, remove };
       }
     }).mount('#app');
   </script>
