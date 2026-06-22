@@ -257,9 +257,15 @@
           });
         }
 
-        async function addRoot() {
-          const title = prompt('根節點名稱');
-          if (!title) return;
+        function addRoot() {
+          const base = projectName.value || '大項';
+          const rootTitles = flatNodes.value.filter(n => !n.parentId).map(n => n.title);
+          let title = base;
+          if (rootTitles.includes(title)) {
+            let i = 2;
+            while (rootTitles.includes(`${base}${i}`)) i++;
+            title = `${base}${i}`;
+          }
           stompClient.value.publish({
             destination: `/app/project/${PROJECT_ID}/node/create`,
             body: JSON.stringify({ title, sortOrder: flatNodes.value.length })
@@ -322,11 +328,25 @@
         }
 
         async function applyTemplate(templateId) {
-          await api(`/api/projects/${PROJECT_ID}/nodes/init`, {
-            method: 'POST', body: JSON.stringify({ templateId })
-          });
-          showTemplateModal.value = false;
-          load();
+          try {
+            const r = await fetch(`/api/projects/${PROJECT_ID}/nodes/init`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', [CSRF_HEADER]: CSRF_TOKEN },
+              body: JSON.stringify({ templateId })
+            });
+            if (r.status === 403) {
+              alert('套用失敗：權限不足或登入逾時，請重新整理頁面後再試。');
+              return;
+            }
+            if (!r.ok) {
+              alert('套用失敗，請稍後再試。');
+              return;
+            }
+            showTemplateModal.value = false;
+            load();
+          } catch (e) {
+            alert('網路錯誤，請重新整理頁面。');
+          }
         }
 
         async function saveAsTemplate() {

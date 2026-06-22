@@ -60,7 +60,7 @@
               {{ locked ? '🔒 鎖定' : '🔓 編輯中' }}
             </button>
             <template v-if="!locked">
-              <button class="btn btn-sm" @click="addRoot">+ 新增根節點</button>
+              <button class="btn btn-sm" @click="addRoot">+ 新增大項</button>
               <button class="btn btn-sm" @click="showTemplateModal=true" v-if="!hasNodes">套用模板</button>
               <button class="btn btn-sm" @click="saveAsTemplate">另存為模板</button>
             </template>

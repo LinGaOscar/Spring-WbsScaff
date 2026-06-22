@@ -2,7 +2,7 @@
 <html xmlns:th="http://www.thymeleaf.org" lang="zh-TW">
 <head>
   <meta charset="UTF-8">
-  <title>快速子項管理</title>
+  <title>子模板管理</title>
   <link rel="stylesheet" th:href="@{/css/app.css}">
 </head>
 <body>
@@ -11,21 +11,25 @@
     <div th:replace="~{fragments/sidebar :: sidebar}"></div>
     <main class="main-content" id="app">
       <div class="page-header">
-        <h2>快速子項管理</h2>
+        <h2>子模板管理</h2>
       </div>
       <div v-if="error" class="alert alert-error">{{ error }}</div>
 
       <!-- 新增表單 -->
       <div style="background:#fff;border-radius:8px;padding:1.25rem;margin-bottom:1.5rem;box-shadow:0 1px 4px rgba(0,0,0,0.08)">
-        <h3 style="margin-bottom:1rem;font-size:1rem">新增快速子項</h3>
-        <div style="display:flex;gap:0.75rem;align-items:flex-end">
-          <div class="form-group" style="flex:1;margin-bottom:0">
+        <h3 style="margin-bottom:1rem;font-size:1rem">新增子模板</h3>
+        <div style="display:grid;grid-template-columns:1fr 140px 1fr auto;gap:0.75rem;align-items:flex-end">
+          <div class="form-group" style="margin-bottom:0">
             <label>名稱</label>
             <input type="text" v-model="newTitle" placeholder="例：開防火牆" @keyup.enter="create" />
           </div>
-          <div class="form-group" style="width:140px;margin-bottom:0">
+          <div class="form-group" style="margin-bottom:0">
             <label>分類（選填）</label>
             <input type="text" v-model="newCategory" placeholder="常用" />
+          </div>
+          <div class="form-group" style="margin-bottom:0">
+            <label>需求單</label>
+            <input type="text" v-model="newReqDoc" placeholder="TTW-001" />
           </div>
           <button class="btn btn-primary" style="width:auto;margin-top:0" @click="create">新增</button>
         </div>
@@ -34,16 +38,18 @@
       <!-- 清單 -->
       <table class="data-table" v-if="items.length">
         <thead>
-          <tr><th>名稱</th><th>分類</th><th>排序</th><th>操作</th></tr>
+          <tr><th>名稱</th><th>分類</th><th>需求單</th><th>排序</th><th>操作</th></tr>
         </thead>
         <tbody>
           <tr v-for="item in items" :key="item.id">
-            <!-- 編輯模式：行內輸入 -->
+            <!-- 編輯模式 -->
             <template v-if="editingId === item.id">
               <td><input type="text" v-model="editTitle" @keyup.enter="saveEdit(item)"
                          @keyup.escape="cancelEdit"
                          style="width:100%;padding:4px 8px;border:1px solid #0984e3;border-radius:4px" /></td>
               <td><input type="text" v-model="editCategory"
+                         style="width:100%;padding:4px 8px;border:1px solid #b2bec3;border-radius:4px" /></td>
+              <td><input type="text" v-model="editReqDoc" placeholder="TTW-..."
                          style="width:100%;padding:4px 8px;border:1px solid #b2bec3;border-radius:4px" /></td>
               <td>{{ item.sortOrder }}</td>
               <td style="display:flex;gap:0.4rem">
@@ -55,6 +61,7 @@
             <template v-else>
               <td>{{ item.title }}</td>
               <td>{{ item.category || '-' }}</td>
+              <td>{{ item.requirementDoc || '-' }}</td>
               <td>{{ item.sortOrder }}</td>
               <td style="display:flex;gap:0.4rem">
                 <button class="btn btn-sm" @click="startEdit(item)">編輯</button>
@@ -64,7 +71,7 @@
           </tr>
         </tbody>
       </table>
-      <p v-else style="color:#636e72">尚無快速子項，請新增。</p>
+      <p v-else style="color:#636e72">尚無子模板，請新增。</p>
     </main>
   </div>
   <div th:replace="~{fragments/footer :: footer}"></div>
@@ -81,13 +88,15 @@
 
     createApp({
       setup() {
-        const items       = ref([]);
-        const newTitle    = ref('');
-        const newCategory = ref('');
-        const error       = ref('');
-        const editingId   = ref(null);
-        const editTitle   = ref('');
+        const items        = ref([]);
+        const newTitle     = ref('');
+        const newCategory  = ref('');
+        const newReqDoc    = ref('');
+        const error        = ref('');
+        const editingId    = ref(null);
+        const editTitle    = ref('');
         const editCategory = ref('');
+        const editReqDoc   = ref('');
 
         async function load() {
           const d = await api('/api/quick-items');
@@ -101,10 +110,11 @@
             body: JSON.stringify({
               title: newTitle.value.trim(),
               category: newCategory.value.trim() || '常用',
-              sortOrder: items.value.length
+              sortOrder: items.value.length,
+              requirementDoc: newReqDoc.value.trim() || null
             })
           });
-          if (d.success) { newTitle.value = ''; newCategory.value = ''; load(); }
+          if (d.success) { newTitle.value = ''; newCategory.value = ''; newReqDoc.value = ''; load(); }
           else error.value = d.message || '新增失敗';
         }
 
@@ -112,11 +122,10 @@
           editingId.value   = item.id;
           editTitle.value   = item.title;
           editCategory.value = item.category || '';
+          editReqDoc.value  = item.requirementDoc || '';
         }
 
-        function cancelEdit() {
-          editingId.value = null;
-        }
+        function cancelEdit() { editingId.value = null; }
 
         async function saveEdit(item) {
           if (!editTitle.value.trim()) return;
@@ -125,7 +134,8 @@
             body: JSON.stringify({
               title: editTitle.value.trim(),
               category: editCategory.value.trim() || item.category,
-              sortOrder: item.sortOrder
+              sortOrder: item.sortOrder,
+              requirementDoc: editReqDoc.value.trim() || null
             })
           });
           if (d.success) { editingId.value = null; load(); }
@@ -139,8 +149,8 @@
         }
 
         onMounted(load);
-        return { items, newTitle, newCategory, error,
-                 editingId, editTitle, editCategory,
+        return { items, newTitle, newCategory, newReqDoc, error,
+                 editingId, editTitle, editCategory, editReqDoc,
                  create, startEdit, cancelEdit, saveEdit, remove };
       }
     }).mount('#app');

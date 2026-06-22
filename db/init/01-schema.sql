@@ -76,10 +76,11 @@ CREATE TABLE IF NOT EXISTS wbs_template_nodes (
 );
 
 CREATE TABLE IF NOT EXISTS wbs_quick_items (
-    id          BIGSERIAL PRIMARY KEY,
-    title       VARCHAR(255) NOT NULL,
-    category    VARCHAR(255),
-    sort_order  INT,
-    section_id  BIGINT REFERENCES departments(id),
-    created_at  TIMESTAMP
+    id              BIGSERIAL PRIMARY KEY,
+    title           VARCHAR(255) NOT NULL,
+    category        VARCHAR(255),
+    sort_order      INT,
+    requirement_doc VARCHAR(500),
+    section_id      BIGINT REFERENCES departments(id),
+    created_at      TIMESTAMP
 );

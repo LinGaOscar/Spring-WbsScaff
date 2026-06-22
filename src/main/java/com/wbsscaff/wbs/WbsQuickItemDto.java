@@ -11,6 +11,7 @@ public class WbsQuickItemDto {
         private String title;
         private String category;
         private int sortOrder;
+        private String requirementDoc;
 
         public static Response from(WbsQuickItem item) {
             Response r = new Response();
@@ -18,6 +19,7 @@ public class WbsQuickItemDto {
             r.title = item.getTitle();
             r.category = item.getCategory();
             r.sortOrder = item.getSortOrder();
+            r.requirementDoc = item.getRequirementDoc();
             return r;
         }
     }
@@ -28,5 +30,6 @@ public class WbsQuickItemDto {
         private String title;
         private String category;
         private int sortOrder;
+        private String requirementDoc;
     }
 }

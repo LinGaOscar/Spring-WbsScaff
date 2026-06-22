@@ -58,6 +58,7 @@ public class WbsQuickItemController {
             .title(req.getTitle())
             .category(req.getCategory() != null ? req.getCategory() : "常用")
             .sortOrder(req.getSortOrder())
+            .requirementDoc(req.getRequirementDoc())
             .section(user.getDepartment())
             .build();
         return ApiResponse.ok(WbsQuickItemDto.Response.from(quickItemRepository.save(item)));
@@ -79,6 +80,7 @@ public class WbsQuickItemController {
         }
         item.setTitle(req.getTitle());
         if (req.getCategory() != null) item.setCategory(req.getCategory());
+        item.setRequirementDoc(req.getRequirementDoc());
         return ApiResponse.ok(WbsQuickItemDto.Response.from(quickItemRepository.save(item)));
     }
 
