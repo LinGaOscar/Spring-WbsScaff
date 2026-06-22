@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="zh-TW">
+<head>
+  <meta charset="UTF-8"><title>專案列表</title>
+  <link rel="stylesheet" th:href="@{/css/app.css}">
+</head>
+<body>
+  <div th:replace="~{fragments/header :: header}"></div>
+  <div class="layout">
+    <div th:replace="~{fragments/sidebar :: sidebar}"></div>
+    <main class="main-content" id="app">
+      <div class="page-header">
+        <h2>我的專案</h2>
+        <button class="btn btn-primary" style="width:auto" @click="openCreate"
+                v-if="canCreate">新增專案</button>
+      </div>
+      <div v-if="error" class="alert alert-error">{{ error }}</div>
+      <div class="project-grid" v-if="projects.length">
+        <div class="project-card" v-for="p in projects" :key="p.id"
+             @click="go(p.id)">
+          <div class="project-card-name">{{ p.name }}</div>
+          <div class="project-card-meta">
+            <span>負責人：{{ p.ownerName }}</span>
+            <span v-if="p.departmentName">｜{{ p.departmentName }}</span>
+          </div>
+        </div>
+      </div>
+      <p v-else style="color:#636e72">尚無專案</p>
+
+      <div v-if="modal.open" class="modal-overlay" @click.self="modal.open=false">
+        <div class="modal">
+          <h3>新增專案</h3>
+          <div class="form-group">
+            <label>專案名稱</label>
+            <input v-model="modal.name" autofocus>
+          </div>
+          <div class="modal-actions">
+            <button class="btn btn-primary" style="width:auto" @click="submit">建立</button>
+            <button class="btn" @click="modal.open=false">取消</button>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+  <div th:replace="~{fragments/footer :: footer}"></div>
+
+  <script th:src="@{/js/vue.global.prod.min.js}"></script>
+  <script th:inline="javascript">
+    const CSRF_HEADER = /*[[${_csrf.headerName}]]*/ 'X-CSRF-TOKEN';
+    const CSRF_TOKEN  = /*[[${_csrf.token}]]*/ '';
+    const USER_ROLE   = /*[[${#authentication.principal.authorities[0].authority}]]*/ '';
+    const CAN_CREATE  = /*[[${#authentication.principal.username}]]*/ '' !== '';
+  </script>
+  <script>
+    const { createApp, ref, onMounted } = Vue;
+    createApp({
+      setup() {
+        const projects = ref([]);
+        const error = ref('');
+        const modal = ref({ open: false, name: '' });
+        const canCreate = ref(false);
+
+        const h = () => ({ 'Content-Type': 'application/json', [CSRF_HEADER]: CSRF_TOKEN });
+
+        async function load() {
+          const res = await fetch('/api/projects');
+          const d = await res.json();
+          if (d.success) projects.value = d.data;
+        }
+
+        function openCreate() { modal.value = { open: true, name: '' }; }
+        function go(id) { window.location.href = `/projects/${id}`; }
+
+        async function submit() {
+          const res = await fetch('/api/projects', {
+            method: 'POST', headers: h(),
+            body: JSON.stringify({ name: modal.value.name })
+          });
+          const d = await res.json();
+          if (d.success) { modal.value.open = false; load(); }
+          else error.value = d.message;
+        }
+
+        onMounted(() => {
+          load();
+          fetch('/api/users/me').then(r => r.json()).then(d => {
+            if (d.success) canCreate.value = d.data.canCreateProject || USER_ROLE === 'ROLE_ADMIN';
+          }).catch(() => {});
+        });
+
+        return { projects, error, modal, canCreate, openCreate, go, submit };
+      }
+    }).mount('#app');
+  </script>
+</body>
+</html>

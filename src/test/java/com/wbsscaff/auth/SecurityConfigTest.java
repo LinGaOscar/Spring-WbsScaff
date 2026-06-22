@@ -1,0 +1,32 @@
+package com.wbsscaff.auth;
+
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.web.servlet.MockMvc;
+
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+
+@SpringBootTest
+@AutoConfigureMockMvc
+@ActiveProfiles("test")
+class SecurityConfigTest {
+
+    @Autowired MockMvc mockMvc;
+
+    @Test
+    void unauthenticatedRequest_redirectsToLogin() throws Exception {
+        mockMvc.perform(get("/projects"))
+            .andExpect(status().is3xxRedirection())
+            .andExpect(redirectedUrlPattern("**/login"));
+    }
+
+    @Test
+    void loginPage_isPublic() throws Exception {
+        mockMvc.perform(get("/login"))
+            .andExpect(status().isOk());
+    }
+}

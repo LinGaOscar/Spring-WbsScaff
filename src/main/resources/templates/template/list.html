@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="zh-TW">
+<head>
+  <meta charset="UTF-8"><title>模板管理</title>
+  <link rel="stylesheet" th:href="@{/css/app.css}">
+</head>
+<body>
+  <div th:replace="~{fragments/header :: header}"></div>
+  <div class="layout">
+    <div th:replace="~{fragments/sidebar :: sidebar}"></div>
+    <main class="main-content" id="app">
+      <h2 style="margin-bottom:1.5rem">模板管理</h2>
+      <div v-if="error" class="alert alert-error">{{ error }}</div>
+
+      <h3 style="margin-bottom:0.75rem">系統模板</h3>
+      <table class="data-table" style="margin-bottom:2rem">
+        <thead><tr><th>名稱</th><th>說明</th><th>操作</th></tr></thead>
+        <tbody>
+          <tr v-for="t in templates.system" :key="t.id">
+            <td>{{ t.name }}</td>
+            <td>{{ t.description || '-' }}</td>
+            <td><button class="btn btn-sm" @click="clone(t.id)">複製為自訂</button></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3 style="margin-bottom:0.75rem">我的自訂模板</h3>
+      <table class="data-table" v-if="templates.custom?.length">
+        <thead><tr><th>名稱</th><th>預設</th><th>操作</th></tr></thead>
+        <tbody>
+          <tr v-for="t in templates.custom" :key="t.id">
+            <td>{{ t.name }}</td>
+            <td>
+              <span v-if="t.isDefault" style="color:#27ae60;font-weight:600">✓ 預設</span>
+              <button v-else class="btn btn-sm" @click="setDefault(t.id)">設為預設</button>
+            </td>
+            <td>
+              <a :href="`/api/templates/${t.id}/export`" class="btn btn-sm">下載 JSON</a>
+              <button class="btn btn-sm btn-danger" @click="del(t.id)">刪除</button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <p v-else style="color:#636e72">尚無自訂模板，可從系統模板複製建立。</p>
+    </main>
+  </div>
+  <div th:replace="~{fragments/footer :: footer}"></div>
+
+  <script th:src="@{/js/vue.global.prod.min.js}"></script>
+  <script th:inline="javascript">
+    const CSRF_HEADER = /*[[${_csrf.headerName}]]*/ 'X-CSRF-TOKEN';
+    const CSRF_TOKEN  = /*[[${_csrf.token}]]*/ '';
+  </script>
+  <script>
+    const { createApp, ref, onMounted } = Vue;
+    createApp({
+      setup() {
+        const templates = ref({ system: [], custom: [] });
+        const error = ref('');
+        const h = () => ({ 'Content-Type':'application/json', [CSRF_HEADER]:CSRF_TOKEN });
+
+        async function load() {
+          const d = await fetch('/api/templates').then(r => r.json());
+          if (d.success) templates.value = d.data;
+        }
+
+        async function clone(id) {
+          const d = await fetch(`/api/templates/clone/${id}`,
+            { method:'POST', headers:h() }).then(r => r.json());
+          if (d.success) load(); else error.value = d.message;
+        }
+
+        async function del(id) {
+          if (!confirm('確定刪除此自訂模板？')) return;
+          const d = await fetch(`/api/templates/${id}`,
+            { method:'DELETE', headers:h() }).then(r => r.json());
+          if (d.success) load(); else error.value = d.message;
+        }
+
+        async function setDefault(id) {
+          await fetch(`/api/templates/${id}/set-default`,
+            { method:'PATCH', headers:h() });
+          load();
+        }
+
+        onMounted(load);
+        return { templates, error, clone, del, setDefault };
+      }
+    }).mount('#app');
+  </script>
+</body>
+</html>

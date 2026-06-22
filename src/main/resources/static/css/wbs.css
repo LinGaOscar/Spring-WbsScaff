@@ -1,0 +1,18 @@
+.wbs-toolbar { display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem; }
+.wbs-actions { display:flex; gap:0.5rem; }
+.wbs-node-wrap { margin-left: 1.5rem; }
+.wbs-node-wrap:first-child { margin-left: 0; }
+.wbs-node { display:flex; align-items:center; gap:0.5rem; padding:0.5rem 0.75rem; background:#fff; border-radius:6px; margin-bottom:4px; border:1px solid #f0f0f0; min-height:40px; }
+.wbs-node:hover { border-color:#b2bec3; }
+.wbs-toggle { cursor:pointer; width:1.2rem; flex-shrink:0; color:#636e72; }
+.wbs-title { flex:1; font-size:0.9rem; cursor:default; }
+.wbs-title-input { flex:1; border:none; border-bottom:2px solid #0984e3; outline:none; font-size:0.9rem; padding:0; }
+.wbs-status-badge { font-size:0.75rem; border:1px solid; border-radius:3px; padding:2px 6px; cursor:pointer; white-space:nowrap; }
+.status-not_started .wbs-status-badge { color:#636e72; border-color:#636e72; }
+.status-in_progress .wbs-status-badge { color:#e67e22; border-color:#e67e22; }
+.status-done .wbs-status-badge { color:#27ae60; border-color:#27ae60; }
+.wbs-owner { font-size:0.8rem; color:#636e72; white-space:nowrap; }
+.wbs-node-actions { display:flex; gap:4px; opacity:0; transition:opacity 0.1s; }
+.wbs-node:hover .wbs-node-actions { opacity:1; }
+.wbs-node-actions button { font-size:0.75rem; padding:2px 6px; border:1px solid #b2bec3; border-radius:3px; cursor:pointer; background:#fff; }
+.wbs-children { margin-left:1.5rem; border-left:2px solid #f0f0f0; padding-left:0.5rem; }

@@ -1,0 +1,58 @@
+package com.wbsscaff.auth;
+
+import com.wbsscaff.user.User;
+import com.wbsscaff.user.UserRepository;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.web.servlet.MockMvc;
+
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestBuilders.formLogin;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+
+@SpringBootTest
+@AutoConfigureMockMvc
+@ActiveProfiles("test")
+class AuthControllerTest {
+
+    @Autowired MockMvc mockMvc;
+    @Autowired UserRepository userRepository;
+    @Autowired PasswordEncoder passwordEncoder;
+
+    @BeforeEach
+    void setup() {
+        userRepository.deleteAll();
+        User user = new User();
+        user.setEmail("admin@test.com");
+        user.setPasswordHash(passwordEncoder.encode("password"));
+        user.setDisplayName("Admin");
+        user.setRole(User.Role.ADMIN);
+        userRepository.save(user);
+    }
+
+    @Test
+    void loginPage_renders() throws Exception {
+        mockMvc.perform(get("/login"))
+            .andExpect(status().isOk())
+            .andExpect(view().name("auth/login"));
+    }
+
+    @Test
+    void validCredentials_redirectToProjects() throws Exception {
+        mockMvc.perform(formLogin("/auth/login").user("admin@test.com").password("password"))
+            .andExpect(status().is3xxRedirection())
+            .andExpect(redirectedUrl("/projects"));
+    }
+
+    @Test
+    void invalidCredentials_redirectWithError() throws Exception {
+        mockMvc.perform(formLogin("/auth/login").user("admin@test.com").password("wrong"))
+            .andExpect(status().is3xxRedirection())
+            .andExpect(redirectedUrl("/login?error"));
+    }
+}

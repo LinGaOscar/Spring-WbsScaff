@@ -1,0 +1,24 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/wbsscaff
+    username: wbsscaff
+    password: ${DB_PASSWORD:wbsscaff}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+    show-sql: false
+  session:
+    store-type: jdbc
+    jdbc:
+      initialize-schema: always
+  thymeleaf:
+    cache: false
+server:
+  port: 8080
+logging:
+  level:
+    com.wbsscaff: INFO
