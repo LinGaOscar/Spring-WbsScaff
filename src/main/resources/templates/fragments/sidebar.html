@@ -9,6 +9,9 @@
     <li sec:authorize="hasAnyRole('SECTION_CHIEF','PROJECT_LEADER')">
       <a th:href="@{/admin/members}">專案成員管理</a>
     </li>
+    <li sec:authorize="hasAnyRole('SECTION_CHIEF','DIRECTOR')">
+      <a th:href="@{/admin/users}">人員管理</a>
+    </li>
 
     <li class="sidebar-group-label">模板管理</li>
     <li><a th:href="@{/templates}">主模板管理</a></li>

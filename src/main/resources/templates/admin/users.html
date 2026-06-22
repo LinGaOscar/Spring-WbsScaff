@@ -2,7 +2,7 @@
 <html xmlns:th="http://www.thymeleaf.org" lang="zh-TW">
 <head>
   <meta charset="UTF-8">
-  <title>使用者管理</title>
+  <title>人員管理</title>
   <link rel="stylesheet" th:href="@{/css/app.css}">
 </head>
 <body>
@@ -11,15 +11,15 @@
     <div th:replace="~{fragments/sidebar :: sidebar}"></div>
     <main class="main-content" id="app">
       <div class="page-header">
-        <h2>使用者管理</h2>
-        <button class="btn btn-primary" style="width:auto" @click="openCreate">新增使用者</button>
+        <h2>人員管理</h2>
+        <button class="btn btn-primary" style="width:auto" @click="openCreate">+ 新增人員</button>
       </div>
       <div v-if="error" class="alert alert-error">{{ error }}</div>
+
       <table class="data-table" v-if="users.length">
         <thead>
           <tr>
-            <th>姓名</th><th>電子郵件</th><th>部門</th>
-            <th>角色</th><th>可建專案</th><th>操作</th>
+            <th>姓名</th><th>電子郵件</th><th>部門</th><th>角色</th><th>操作</th>
           </tr>
         </thead>
         <tbody>
@@ -27,40 +27,46 @@
             <td>{{ u.displayName }}</td>
             <td>{{ u.email }}</td>
             <td>{{ u.departmentName || '-' }}</td>
-            <td>{{ u.role === 'ADMIN' ? '系統管理員' : '一般成員' }}</td>
-            <td>
-              <input type="checkbox" :checked="u.canCreateProject"
-                @change="toggleCanCreate(u.id, $event.target.checked)">
-            </td>
+            <td>{{ roleLabel(u.role) }}</td>
             <td>
               <button class="btn btn-sm" @click="openEdit(u)">編輯</button>
-              <button class="btn btn-sm btn-danger" @click="disable(u.id)">停用</button>
+              <button class="btn btn-sm btn-danger" @click="disable(u)">停用</button>
             </td>
           </tr>
         </tbody>
       </table>
-      <p v-else style="color:#636e72">尚無使用者</p>
+      <p v-else style="color:#636e72">尚無人員資料。</p>
 
+      <!-- 新增 / 編輯 modal -->
       <div v-if="modal.open" class="modal-overlay" @click.self="closeModal">
         <div class="modal">
-          <h3>{{ modal.isEdit ? '編輯使用者' : '新增使用者' }}</h3>
+          <h3>{{ modal.isEdit ? '編輯人員' : '新增人員' }}</h3>
           <div class="form-group">
             <label>電子郵件</label>
             <input v-model="modal.form.email" type="email" :disabled="modal.isEdit">
           </div>
           <div class="form-group" v-if="!modal.isEdit">
             <label>密碼</label>
-            <input v-model="modal.form.password" type="password">
+            <input v-model="modal.form.password" type="password" placeholder="至少 6 碼">
           </div>
           <div class="form-group">
             <label>姓名</label>
             <input v-model="modal.form.displayName">
           </div>
           <div class="form-group">
+            <label>部門</label>
+            <select v-model="modal.form.departmentId">
+              <option :value="null">— 無部門 —</option>
+              <option v-for="d in departments" :key="d.id" :value="d.id">{{ d.name }}</option>
+            </select>
+          </div>
+          <div class="form-group">
             <label>角色</label>
             <select v-model="modal.form.role">
-              <option value="MEMBER">一般成員</option>
-              <option value="ADMIN">系統管理員</option>
+              <option value="DIRECTOR">部長</option>
+              <option value="SECTION_CHIEF">科長</option>
+              <option value="PROJECT_LEADER">專案 Leader</option>
+              <option value="PROJECT_MEMBER">專案成員</option>
             </select>
           </div>
           <div class="modal-actions">
@@ -80,57 +86,63 @@
   </script>
   <script>
     const { createApp, ref, onMounted } = Vue;
+    const h   = () => ({ 'Content-Type': 'application/json', [CSRF_HEADER]: CSRF_TOKEN });
+    const api = (url, opt={}) => fetch(url, { headers: h(), ...opt }).then(r => r.json());
+
+    const ROLE_LABELS = {
+      DIRECTOR: '部長', SECTION_CHIEF: '科長',
+      PROJECT_LEADER: '專案 Leader', PROJECT_MEMBER: '專案成員'
+    };
+
     createApp({
       setup() {
-        const users = ref([]);
-        const error = ref('');
-        const modal = ref({ open: false, isEdit: false, editId: null, form: {} });
+        const users       = ref([]);
+        const departments = ref([]);
+        const error       = ref('');
+        const modal       = ref({ open: false, isEdit: false, editId: null, form: {} });
 
-        const h = () => ({ 'Content-Type': 'application/json', [CSRF_HEADER]: CSRF_TOKEN });
+        const roleLabel = (r) => ROLE_LABELS[r] || r;
 
         async function load() {
-          const res = await fetch('/api/users');
-          const d = await res.json();
-          if (d.success) users.value = d.data;
+          const [ud, dd] = await Promise.all([api('/api/users'), api('/api/departments')]);
+          if (ud.success) users.value = ud.data;
+          if (dd.success) departments.value = dd.data;
         }
 
         function openCreate() {
+          error.value = '';
           modal.value = { open: true, isEdit: false, editId: null,
-            form: { email: '', password: '', displayName: '', role: 'MEMBER' } };
+            form: { email: '', password: '', displayName: '', departmentId: null, role: 'PROJECT_MEMBER' } };
         }
 
         function openEdit(u) {
+          error.value = '';
+          const dept = departments.value.find(d => d.name === u.departmentName);
           modal.value = { open: true, isEdit: true, editId: u.id,
-            form: { displayName: u.displayName, role: u.role } };
+            form: { displayName: u.displayName, departmentId: dept?.id ?? null, role: u.role } };
         }
 
         function closeModal() { modal.value.open = false; }
 
         async function submit() {
           const { isEdit, editId, form } = modal.value;
-          const res = await fetch(isEdit ? `/api/users/${editId}` : '/api/users', {
-            method: isEdit ? 'PUT' : 'POST', headers: h(), body: JSON.stringify(form)
+          const d = await api(isEdit ? `/api/users/${editId}` : '/api/users', {
+            method: isEdit ? 'PUT' : 'POST', body: JSON.stringify(form)
           });
-          const d = await res.json();
           if (d.success) { closeModal(); load(); }
-          else error.value = d.message;
+          else error.value = d.message || '操作失敗';
         }
 
-        async function disable(id) {
-          if (!confirm('確定停用此使用者？')) return;
-          await fetch(`/api/users/${id}`, { method: 'DELETE', headers: h() });
-          load();
-        }
-
-        async function toggleCanCreate(id, value) {
-          await fetch(`/api/users/${id}/can-create-project`, {
-            method: 'PATCH', headers: h(), body: JSON.stringify({ value })
-          });
-          load();
+        async function disable(u) {
+          if (!confirm(`確定停用「${u.displayName}」？停用後無法登入。`)) return;
+          const d = await api(`/api/users/${u.id}`, { method: 'DELETE' });
+          if (d.success) load();
+          else error.value = d.message || '停用失敗';
         }
 
         onMounted(load);
-        return { users, error, modal, openCreate, openEdit, closeModal, submit, disable, toggleCanCreate };
+        return { users, departments, error, modal, roleLabel,
+                 openCreate, openEdit, closeModal, submit, disable };
       }
     }).mount('#app');
   </script>
