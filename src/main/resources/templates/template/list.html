@@ -24,9 +24,11 @@
         <h2>主模板管理</h2>
       </div>
       <div v-if="error" class="alert alert-error">{{ error }}</div>
-      <p v-if="!templates.length" style="color:#636e72">尚無系統模板。</p>
 
-      <div v-for="t in templates" :key="t.id" class="tpl-card">
+      <!-- 系統模板 -->
+      <h3 style="font-size:0.85rem;color:#b2bec3;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.75rem">系統模板</h3>
+      <p v-if="!systemTpls.length" style="color:#636e72;margin-bottom:1rem">尚無系統模板。</p>
+      <div v-for="t in systemTpls" :key="t.id" class="tpl-card">
         <div class="tpl-card-header" @click="togglePreview(t.id)">
           <div>
             <div class="tpl-card-name">{{ t.name }}</div>
@@ -34,7 +36,33 @@
           </div>
           <span class="tpl-toggle">{{ expanded.has(t.id) ? '▲ 收合' : '▼ 預覽節點' }}</span>
         </div>
+        <div v-if="expanded.has(t.id)" class="tpl-preview">
+          <div v-if="!previewData[t.id]" style="color:#b2bec3;font-size:0.85rem">載入中...</div>
+          <template v-else>
+            <div v-for="node in previewData[t.id]" :key="node.id"
+                 :class="node.parentId ? 'tpl-node tpl-node-child' : 'tpl-node tpl-node-root'">
+              {{ node.parentId ? '└ ' : '' }}{{ node.title }}
+            </div>
+          </template>
+        </div>
+      </div>
 
+      <!-- 自訂模板 -->
+      <h3 style="font-size:0.85rem;color:#b2bec3;text-transform:uppercase;letter-spacing:0.06em;margin:1.5rem 0 0.75rem">自訂模板（從專案另存）</h3>
+      <p v-if="!customTpls.length" style="color:#636e72;margin-bottom:1rem">尚無自訂模板，可在專案 WBS 頁點選「另存為模板」建立。</p>
+      <div v-for="t in customTpls" :key="t.id" class="tpl-card">
+        <div class="tpl-card-header" @click="togglePreview(t.id)">
+          <div>
+            <div class="tpl-card-name">{{ t.name }}</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:0.5rem" @click.stop>
+            <span class="tpl-toggle" style="cursor:pointer" @click="togglePreview(t.id)">
+              {{ expanded.has(t.id) ? '▲ 收合' : '▼ 預覽節點' }}
+            </span>
+            <button class="btn btn-sm" @click="renameTemplate(t)">改名</button>
+            <button class="btn btn-sm btn-danger" @click="deleteTemplate(t)">刪除</button>
+          </div>
+        </div>
         <div v-if="expanded.has(t.id)" class="tpl-preview">
           <div v-if="!previewData[t.id]" style="color:#b2bec3;font-size:0.85rem">載入中...</div>
           <template v-else>
@@ -59,19 +87,23 @@
     const CSRF_TOKEN  = /*[[${_csrf.token}]]*/ '';
   </script>
   <script>
-    const { createApp, ref, reactive, onMounted } = Vue;
-    const api = (url) => fetch(url).then(r => r.json());
+    const { createApp, ref, reactive, computed, onMounted } = Vue;
+    const h   = () => ({ 'Content-Type':'application/json', [CSRF_HEADER]:CSRF_TOKEN });
+    const api = (url, opt={}) => fetch(url, { headers: h(), ...opt }).then(r => r.json());
 
     createApp({
       setup() {
-        const templates   = ref([]);
-        const expanded    = ref(new Set());
-        const previewData = reactive({});
-        const error       = ref('');
+        const allTemplates = ref({ system: [], custom: [] });
+        const expanded     = ref(new Set());
+        const previewData  = reactive({});
+        const error        = ref('');
+
+        const systemTpls = computed(() => allTemplates.value.system || []);
+        const customTpls = computed(() => allTemplates.value.custom || []);
 
         async function load() {
           const d = await api('/api/templates');
-          if (d.success) templates.value = d.data.system || [];
+          if (d.success) allTemplates.value = d.data;
           else error.value = '載入失敗';
         }
 
@@ -89,8 +121,27 @@
           expanded.value = s;
         }
 
+        async function renameTemplate(t) {
+          const name = prompt('新名稱', t.name);
+          if (!name || name === t.name) return;
+          const d = await api(`/api/templates/${t.id}`, {
+            method: 'PUT',
+            body: JSON.stringify({ name, description: t.description })
+          });
+          if (d.success) load();
+          else alert('改名失敗：' + (d.message || ''));
+        }
+
+        async function deleteTemplate(t) {
+          if (!confirm(`確定刪除模板「${t.name}」？`)) return;
+          const d = await api(`/api/templates/${t.id}`, { method: 'DELETE' });
+          if (d.success) load();
+          else alert('刪除失敗：' + (d.message || ''));
+        }
+
         onMounted(load);
-        return { templates, expanded, previewData, error, togglePreview };
+        return { systemTpls, customTpls, expanded, previewData, error,
+                 togglePreview, renameTemplate, deleteTemplate };
       }
     }).mount('#app');
   </script>

@@ -352,10 +352,11 @@
         async function saveAsTemplate() {
           const name = prompt('模板名稱');
           if (!name) return;
-          const d = await api(`/api/projects/${PROJECT_ID}/save-as-template`, {
-            method: 'POST', body: JSON.stringify({ name })
+          const d = await api(`/api/templates/from-project/${PROJECT_ID}?name=${encodeURIComponent(name)}`, {
+            method: 'POST'
           });
           if (d.success) alert('已儲存為自訂模板：' + d.data.name);
+          else alert('儲存失敗：' + (d.message || '未知錯誤'));
         }
 
         onMounted(() => {
