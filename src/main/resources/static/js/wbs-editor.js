@@ -131,7 +131,7 @@
         const projectName  = ref('');
         const quickItems   = ref([]);
         const panelCollapsed   = ref(false);
-        const locked       = ref(false);
+        const locked       = ref(typeof READ_ONLY !== 'undefined' ? READ_ONLY : false);
         const treeHighlight    = ref(false);
         const showTemplateModal    = ref(false);
         const availableTemplates   = ref([]);
@@ -379,9 +379,10 @@
           connectWs();
         });
 
+        const isReadOnly = typeof READ_ONLY !== 'undefined' ? READ_ONLY : false;
         return {
           roots, projectName, quickItems, panelCollapsed, locked, treeHighlight,
-          showTemplateModal, availableTemplates,
+          showTemplateModal, availableTemplates, isReadOnly,
           addRoot, addChild, deleteNode, updateNode,
           exportCsv, exportXlsx, hasNodes,
           applyTemplate, saveAsTemplate,

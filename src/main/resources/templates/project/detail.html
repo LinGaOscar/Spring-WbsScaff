@@ -54,12 +54,17 @@
             </div>
           </div>
           <div class="wbs-actions">
-            <!-- 編輯鎖定切換 -->
-            <button class="btn btn-sm" :class="locked ? 'btn-locked' : 'btn-editing'"
-                    @click="locked=!locked" :title="locked ? '點擊解除鎖定' : '點擊鎖定，防止誤操作'">
-              {{ locked ? '🔒 鎖定' : '🔓 編輯中' }}
-            </button>
-            <template v-if="!locked">
+            <!-- 歸檔唯讀：不顯示鎖定切換，只顯示已歸檔標記 -->
+            <template v-if="isReadOnly">
+              <span style="font-size:0.82rem;color:#636e72;padding:0.3rem 0.6rem;background:#f0f0f0;border-radius:4px;">📦 已歸檔（唯讀）</span>
+            </template>
+            <template v-else>
+              <button class="btn btn-sm" :class="locked ? 'btn-locked' : 'btn-editing'"
+                      @click="locked=!locked" :title="locked ? '點擊解除鎖定' : '點擊鎖定，防止誤操作'">
+                {{ locked ? '🔒 鎖定' : '🔓 編輯中' }}
+              </button>
+            </template>
+            <template v-if="!locked && !isReadOnly">
               <button class="btn btn-sm" @click="addRoot">+ 新增大項</button>
               <button class="btn btn-sm" @click="showTemplateModal=true" v-if="!hasNodes">套用模板</button>
               <button class="btn btn-sm" @click="saveAsTemplate">另存為模板</button>
@@ -126,6 +131,7 @@
     const CSRF_HEADER = /*[[${_csrf.headerName}]]*/ 'X-CSRF-TOKEN';
     const CSRF_TOKEN  = /*[[${_csrf.token}]]*/ '';
     const PROJECT_ID  = /*[[${project.id}]]*/ 0;
+    const READ_ONLY   = /*[[${readOnly}]]*/ false;
   </script>
   <script th:src="@{/js/wbs-editor.js}"></script>
 </body>
