@@ -26,9 +26,14 @@
             <span class="wbs-status-badge" @click="!locked && cycleStatus()">
               {{ STATUS_LABEL[node.status] }}
             </span>
-            <input class="wbs-field-input" type="text" v-model="editOwner"
-                   placeholder="負責人" :readonly="locked"
-                   @blur="!locked && commitField('owner', editOwner)" />
+            <select class="wbs-field-input wbs-owner-select" v-model="editOwner"
+                    :disabled="locked"
+                    @change="!locked && commitField('owner', editOwner)">
+              <option value="">— 負責人 —</option>
+              <option v-for="m in projectMembers" :key="m.userId" :value="m.displayName">
+                {{ m.displayName }}
+              </option>
+            </select>
             <input class="wbs-field-input" type="date" v-model="editStartDate"
                    :readonly="locked"
                    @blur="!locked && commitField('startDate', editStartDate)" />
@@ -60,13 +65,14 @@
         </div>
       `,
       setup(props, { emit }) {
-        const editTitle     = ref('');
-        const titleInput    = ref(null);
-        const editOwner     = ref(props.node.owner     || '');
-        const editStartDate = ref(props.node.startDate || '');
-        const editEndDate   = ref(props.node.endDate   || '');
-        const editNotes     = ref(props.node.notes     || '');
-        const isDragOver    = ref(false);
+        const editTitle      = ref('');
+        const titleInput     = ref(null);
+        const editOwner      = ref(props.node.owner     || '');
+        const editStartDate  = ref(props.node.startDate || '');
+        const editEndDate    = ref(props.node.endDate   || '');
+        const editNotes      = ref(props.node.notes     || '');
+        const isDragOver     = ref(false);
+        const projectMembers = inject('projectMembers', ref([]));
 
         function startEdit() {
           editTitle.value = props.node.title;
@@ -112,7 +118,7 @@
         }
 
         return { editTitle, titleInput, editOwner, editStartDate, editEndDate, editNotes,
-                 isDragOver,
+                 isDragOver, projectMembers,
                  startEdit, commitEdit, cycleStatus, commitField,
                  onMouseEnter, onMouseLeave, nodeCursors, onNodeDrop, STATUS_LABEL };
       }
@@ -133,8 +139,11 @@
         const cursors      = ref({});
         const stompClient  = ref(null);
 
-        // 提供鎖定狀態給所有子節點
+        const projectMembers = ref([]);
+
+        // 提供鎖定狀態與成員清單給所有子節點
         provide('locked', locked);
+        provide('projectMembers', projectMembers);
 
         const roots    = computed(() => buildTree(flatNodes.value));
         const hasNodes = computed(() => flatNodes.value.length > 0);
@@ -151,10 +160,14 @@
         }
 
         async function load() {
-          const d = await api(`/api/projects/${PROJECT_ID}/nodes`);
-          if (d.success) flatNodes.value = d.data;
-          const pd = await api(`/api/projects/${PROJECT_ID}`);
+          const [nd, pd, md] = await Promise.all([
+            api(`/api/projects/${PROJECT_ID}/nodes`),
+            api(`/api/projects/${PROJECT_ID}`),
+            api(`/api/projects/${PROJECT_ID}/members`)
+          ]);
+          if (nd.success) flatNodes.value = nd.data;
           if (pd.success) projectName.value = pd.data.name;
+          if (md.success) projectMembers.value = md.data;
         }
 
         async function loadQuickItems() {
