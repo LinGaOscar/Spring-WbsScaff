@@ -9,15 +9,16 @@ INSERT INTO departments (id, name, parent_id) VALUES
 SELECT setval('departments_id_seq', 3);
 
 -- 使用者（密碼皆為 BCrypt，對應明文見 docs/db.md）
+-- 密碼統一為 test1234（BCrypt $2b$10$）
 INSERT INTO users (id, email, password_hash, display_name, department_id, role) VALUES
-    (1, 'director@company.com', '$2a$10$xgrSW1eTL/QUbDRVULbGCuM3WxKIxI1v.47S9nP.RkPUJuylzeJ52', '部長',       1, 'DIRECTOR'),
-    (2, 'chief@infotech.com',   '$2a$10$POo1dvjnrqUTekB1oN1MkOCZbEy6/jIMlvOEmY93SYFDALe..7V1O', '資訊科長',   2, 'SECTION_CHIEF'),
-    (3, 'leader@infotech.com',  '$2a$10$6h9wB9u4eT3w.hMHmqYwjOISiy8Xm3kQ06Hfho5U9saLB57WDaj8G', '資訊Leader', 2, 'PROJECT_LEADER'),
-    (4, 'member1@infotech.com', '$2a$10$ozAKpKl88F2APf79pcdWf.aGvZUzdOgizAfBZGqghk61WXlV4cdb.', '資訊成員一', 2, 'PROJECT_MEMBER'),
-    (5, 'member2@infotech.com', '$2a$10$3MTa5RlnTxD60uQnwjOf1ObCa5UmVbje2PEV61j9XDNwPsIPDaxPy', '資訊成員二', 2, 'PROJECT_MEMBER'),
-    (6, 'chief2@infotech.com',  '$2a$10$hZUD8PAoIesk3.CuWOvFJOYMy9DHg6o7cKsSDL3W/4zECrQNDjcI.', '資訊科長2',  3, 'SECTION_CHIEF'),
-    (7, 'leader2@infotech.com', '$2a$10$unwGWxSdLoVB2qT4P6AeZOzm7cHiYbh/gwpvApOBPx0bIblEJ55Wy', '資訊Leader2',3, 'PROJECT_LEADER'),
-    (8, 'member3@infotech.com', '$2a$10$q8.KcOuLpsblGEqF4dLqhukQvBoi50ek35G/rafX42skTBTDQ0W3y', '資訊成員三', 3, 'PROJECT_MEMBER');
+    (1, 'director@company.com', '$2b$10$A6tAs/0xEks8XeKUpdZP9OER8ZDKYEv9Tt42cQxGYnqHklF/zjaHm', '部長',       1, 'DIRECTOR'),
+    (2, 'chief@infotech.com',   '$2b$10$A6tAs/0xEks8XeKUpdZP9OER8ZDKYEv9Tt42cQxGYnqHklF/zjaHm', '資訊科長',   2, 'SECTION_CHIEF'),
+    (3, 'leader@infotech.com',  '$2b$10$A6tAs/0xEks8XeKUpdZP9OER8ZDKYEv9Tt42cQxGYnqHklF/zjaHm', '資訊Leader', 2, 'PROJECT_LEADER'),
+    (4, 'member1@infotech.com', '$2b$10$A6tAs/0xEks8XeKUpdZP9OER8ZDKYEv9Tt42cQxGYnqHklF/zjaHm', '資訊成員一', 2, 'PROJECT_MEMBER'),
+    (5, 'member2@infotech.com', '$2b$10$A6tAs/0xEks8XeKUpdZP9OER8ZDKYEv9Tt42cQxGYnqHklF/zjaHm', '資訊成員二', 2, 'PROJECT_MEMBER'),
+    (6, 'chief2@infotech.com',  '$2b$10$A6tAs/0xEks8XeKUpdZP9OER8ZDKYEv9Tt42cQxGYnqHklF/zjaHm', '資訊科長2',  3, 'SECTION_CHIEF'),
+    (7, 'leader2@infotech.com', '$2b$10$A6tAs/0xEks8XeKUpdZP9OER8ZDKYEv9Tt42cQxGYnqHklF/zjaHm', '資訊Leader2',3, 'PROJECT_LEADER'),
+    (8, 'member3@infotech.com', '$2b$10$A6tAs/0xEks8XeKUpdZP9OER8ZDKYEv9Tt42cQxGYnqHklF/zjaHm', '資訊成員三', 3, 'PROJECT_MEMBER');
 SELECT setval('users_id_seq', 8);
 
 -- 系統模板
