@@ -2,62 +2,93 @@
 <html xmlns:th="http://www.thymeleaf.org" lang="zh-TW">
 <head>
   <meta charset="UTF-8">
-  <title>成員管理</title>
+  <title>專案人員管理</title>
   <link rel="stylesheet" th:href="@{/css/app.css}">
   <style>
-    .project-section { background:#fff; border-radius:8px; padding:1.25rem 1.5rem; margin-bottom:1rem; box-shadow:0 1px 4px rgba(0,0,0,0.08); }
-    .project-section-header { display:flex; justify-content:space-between; align-items:center; cursor:pointer; user-select:none; }
-    .project-section-header h3 { font-size:1rem; margin:0; }
-    .project-section-header .toggle { color:#636e72; font-size:0.8rem; }
-    .project-members { margin-top:1rem; border-top:1px solid #f0f0f0; padding-top:1rem; }
+    .back-link { display:inline-flex; align-items:center; gap:0.3rem; font-size:0.85rem; color:#636e72; text-decoration:none; margin-bottom:1.25rem; }
+    .back-link:hover { color:#0984e3; }
+    .project-card { background:#fff; border-radius:8px; padding:1.25rem 1.5rem; margin-bottom:1rem; box-shadow:0 1px 4px rgba(0,0,0,0.08); }
+    .project-header { display:flex; justify-content:space-between; align-items:center; cursor:pointer; user-select:none; }
+    .project-header h3 { font-size:1rem; margin:0; }
+    .project-meta { font-size:0.82rem; color:#636e72; font-weight:400; margin-left:0.5rem; }
+    .project-body { margin-top:1rem; border-top:1px solid #f0f0f0; padding-top:1rem; display:grid; grid-template-columns:1fr 1fr; gap:1.5rem; }
+    .section-label { font-size:0.78rem; font-weight:700; color:#b2bec3; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:0.5rem; }
+    /* 負責人 */
+    .owner-row { display:flex; align-items:center; gap:0.5rem; }
+    .owner-name { font-size:0.9rem; font-weight:600; }
+    .owner-select { flex:1; padding:0.35rem 0.6rem; border:1px solid #b2bec3; border-radius:4px; font-size:0.85rem; }
+    /* 成員標籤 */
     .member-tag { display:inline-flex; align-items:center; gap:0.4rem; background:#f5f6fa; border:1px solid #dfe6e9; border-radius:20px; padding:0.3rem 0.75rem; font-size:0.85rem; margin:0.25rem; }
-    .member-tag .remove-btn { background:none; border:none; cursor:pointer; color:#b2bec3; font-size:1rem; line-height:1; padding:0; }
-    .member-tag .remove-btn:hover { color:#e17055; }
-    .add-member-row { display:flex; gap:0.5rem; margin-top:0.75rem; align-items:center; }
-    .add-member-row select { flex:1; padding:0.4rem 0.6rem; border:1px solid #b2bec3; border-radius:4px; font-size:0.85rem; }
+    .member-tag.is-owner { background:#e8f4fd; border-color:#b2d4f0; }
+    .remove-btn { background:none; border:none; cursor:pointer; color:#b2bec3; font-size:1rem; line-height:1; padding:0; }
+    .remove-btn:hover { color:#e17055; }
+    .add-row { display:flex; gap:0.5rem; margin-top:0.75rem; }
+    .add-row select { flex:1; padding:0.4rem 0.6rem; border:1px solid #b2bec3; border-radius:4px; font-size:0.85rem; }
+    @media (max-width:700px) { .project-body { grid-template-columns:1fr; } }
   </style>
 </head>
 <body>
   <div th:replace="~{fragments/header :: header}"></div>
-  <div class="layout">
-    <div th:replace="~{fragments/sidebar :: sidebar}"></div>
-    <main class="main-content" id="app">
-      <div class="page-header">
-        <h2>成員管理</h2>
-      </div>
-      <div v-if="error" class="alert alert-error">{{ error }}</div>
-      <p v-if="!projects.length" style="color:#636e72">尚無可管理的專案。</p>
+  <main class="main-content" id="app" style="max-width:960px; margin:0 auto;">
+    <a href="/projects" class="back-link">← 返回專案列表</a>
+    <div class="page-header">
+      <h2>專案人員管理</h2>
+    </div>
+    <div v-if="error" class="alert alert-error">{{ error }}</div>
+    <p v-if="!projects.length" style="color:#636e72">尚無可管理的專案。</p>
 
-      <div v-for="proj in projects" :key="proj.id" class="project-section">
-        <div class="project-section-header" @click="toggle(proj.id)">
-          <h3>{{ proj.name }}
-            <span style="font-size:0.8rem;color:#636e72;font-weight:400;margin-left:0.5rem">
-              {{ proj.departmentName }} · {{ proj.ownerName }}
-            </span>
-          </h3>
-          <span class="toggle">{{ expanded.has(proj.id) ? '▲' : '▼' }}</span>
+    <div v-for="proj in projects" :key="proj.id" class="project-card">
+      <!-- 標頭列 -->
+      <div class="project-header" @click="toggle(proj.id)">
+        <h3>{{ proj.name }}
+          <span class="project-meta">{{ proj.departmentName }}</span>
+        </h3>
+        <span style="color:#b2bec3;font-size:0.8rem">{{ expanded.has(proj.id) ? '▲' : '▼' }}</span>
+      </div>
+
+      <!-- 展開區：兩欄 -->
+      <div v-if="expanded.has(proj.id)" class="project-body">
+
+        <!-- 左欄：專案負責人 -->
+        <div>
+          <div class="section-label">專案負責人</div>
+          <div class="owner-row">
+            <select class="owner-select" v-model="ownerDraft[proj.id]">
+              <option v-for="u in allUsers" :key="u.id" :value="u.id">
+                {{ u.displayName }}（{{ u.departmentName || '無部門' }}）
+              </option>
+            </select>
+            <button class="btn btn-sm btn-primary" style="width:auto"
+                    @click="changeOwner(proj)"
+                    :disabled="ownerDraft[proj.id] === proj.ownerId">確認</button>
+          </div>
+          <p style="font-size:0.8rem;color:#636e72;margin-top:0.4rem">
+            目前：{{ proj.ownerName || '未指定' }}
+          </p>
         </div>
 
-        <div v-if="expanded.has(proj.id)" class="project-members">
-          <!-- 現有成員 -->
+        <!-- 右欄：專案成員 -->
+        <div>
+          <div class="section-label">專案成員</div>
           <div>
-            <span v-for="m in memberMap[proj.id] || []" :key="m.userId" class="member-tag">
+            <span v-for="m in memberMap[proj.id] || []" :key="m.userId"
+                  class="member-tag" :class="{'is-owner': m.userId === proj.ownerId}">
               {{ m.displayName }}
               <button class="remove-btn" @click="removeMember(proj.id, m.userId)" title="移除">×</button>
             </span>
             <span v-if="!(memberMap[proj.id]?.length)" style="color:#b2bec3;font-size:0.85rem">尚無成員</span>
           </div>
-          <!-- 新增成員：本科優先，optgroup 分組 -->
-          <div class="add-member-row">
+          <!-- 新增成員：本科優先 -->
+          <div class="add-row">
             <select v-model="addingUser[proj.id]">
-              <option value="">— 選擇使用者 —</option>
-              <optgroup v-if="availableUserGroups(proj.id).sameDept.length" label="本科">
-                <option v-for="u in availableUserGroups(proj.id).sameDept" :key="u.id" :value="u.id">
+              <option value="">— 新增成員 —</option>
+              <optgroup v-if="availableGroups(proj.id).sameDept.length" label="本科">
+                <option v-for="u in availableGroups(proj.id).sameDept" :key="u.id" :value="u.id">
                   {{ u.displayName }}
                 </option>
               </optgroup>
-              <optgroup v-if="availableUserGroups(proj.id).others.length" label="其他科">
-                <option v-for="u in availableUserGroups(proj.id).others" :key="u.id" :value="u.id">
+              <optgroup v-if="availableGroups(proj.id).others.length" label="其他科">
+                <option v-for="u in availableGroups(proj.id).others" :key="u.id" :value="u.id">
                   {{ u.displayName }}（{{ u.departmentName || '無部門' }}）
                 </option>
               </optgroup>
@@ -67,8 +98,8 @@
           </div>
         </div>
       </div>
-    </main>
-  </div>
+    </div>
+  </main>
   <div th:replace="~{fragments/footer :: footer}"></div>
 
   <script th:src="@{/js/vue.global.prod.min.js}"></script>
@@ -77,25 +108,24 @@
     const CSRF_TOKEN  = /*[[${_csrf.token}]]*/ '';
   </script>
   <script>
-    const { createApp, ref, reactive, computed, onMounted } = Vue;
-    const h   = () => ({ 'Content-Type':'application/json', [CSRF_HEADER]:CSRF_TOKEN });
+    const { createApp, ref, reactive, onMounted } = Vue;
+    const h   = () => ({ 'Content-Type': 'application/json', [CSRF_HEADER]: CSRF_TOKEN });
     const api = (url, opt={}) => fetch(url, { headers: h(), ...opt }).then(r => r.json());
 
     createApp({
       setup() {
-        const projects      = ref([]);
-        const allUsers      = ref([]);
-        const currentUser   = ref(null);
-        const memberMap     = reactive({});   // projectId → member[]
-        const addingUser    = reactive({});   // projectId → userId
-        const expanded      = ref(new Set());
-        const error         = ref('');
+        const projects   = ref([]);
+        const allUsers   = ref([]);
+        const currentUser = ref(null);
+        const memberMap  = reactive({});
+        const addingUser = reactive({});
+        const ownerDraft = reactive({});
+        const expanded   = ref(new Set());
+        const error      = ref('');
 
         async function load() {
           const [pd, ud, me] = await Promise.all([
-            api('/api/projects'),
-            api('/api/users'),
-            api('/api/users/me')
+            api('/api/projects'), api('/api/users'), api('/api/users/me')
           ]);
           if (pd.success) projects.value = pd.data;
           if (ud.success) allUsers.value = ud.data;
@@ -114,12 +144,14 @@
           } else {
             s.add(projectId);
             if (!memberMap[projectId]) loadMembers(projectId);
+            // 預設負責人草稿為目前負責人
+            const proj = projects.value.find(p => p.id === projectId);
+            if (proj && !ownerDraft[projectId]) ownerDraft[projectId] = proj.ownerId;
           }
           expanded.value = s;
         }
 
-        // 回傳 { sameDept: [], others: [] }，供 optgroup 分組顯示
-        function availableUserGroups(projectId) {
+        function availableGroups(projectId) {
           const memberIds = new Set((memberMap[projectId] || []).map(m => m.userId));
           const myDept = currentUser.value?.departmentName;
           const candidates = allUsers.value.filter(u => !memberIds.has(u.id));
@@ -129,19 +161,29 @@
           };
         }
 
+        async function changeOwner(proj) {
+          const userId = ownerDraft[proj.id];
+          if (!userId || userId === proj.ownerId) return;
+          const d = await api(`/api/projects/${proj.id}/owner`, {
+            method: 'PATCH', body: JSON.stringify({ userId })
+          });
+          if (d.success) {
+            const updated = allUsers.value.find(u => u.id === userId);
+            proj.ownerId  = userId;
+            proj.ownerName = updated?.displayName || '';
+          } else {
+            error.value = d.message || '變更失敗';
+          }
+        }
+
         async function addMember(projectId) {
           const userId = addingUser[projectId];
           if (!userId) return;
           const d = await api(`/api/projects/${projectId}/members`, {
-            method: 'POST',
-            body: JSON.stringify({ userId })
+            method: 'POST', body: JSON.stringify({ userId })
           });
-          if (d.success) {
-            addingUser[projectId] = '';
-            loadMembers(projectId);
-          } else {
-            error.value = d.message || '新增失敗';
-          }
+          if (d.success) { addingUser[projectId] = ''; loadMembers(projectId); }
+          else error.value = d.message || '新增失敗';
         }
 
         async function removeMember(projectId, userId) {
@@ -151,8 +193,8 @@
         }
 
         onMounted(load);
-        return { projects, memberMap, addingUser, expanded, error,
-                 toggle, availableUserGroups, addMember, removeMember };
+        return { projects, allUsers, memberMap, addingUser, ownerDraft, expanded, error,
+                 toggle, availableGroups, changeOwner, addMember, removeMember };
       }
     }).mount('#app');
   </script>

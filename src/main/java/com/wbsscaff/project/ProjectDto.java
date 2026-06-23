@@ -17,6 +17,7 @@ public class ProjectDto {
         private Long id;
         private String name;
         private String departmentName;
+        private Long ownerId;
         private String ownerName;
         private String ownerEmail;
         private LocalDateTime createdAt;
@@ -26,6 +27,7 @@ public class ProjectDto {
             r.id = p.getId();
             r.name = p.getName();
             r.departmentName = p.getDepartment() != null ? p.getDepartment().getName() : null;
+            r.ownerId    = p.getOwner() != null ? p.getOwner().getId() : null;
             r.ownerName  = p.getOwner() != null ? p.getOwner().getDisplayName() : null;
             r.ownerEmail = p.getOwner() != null ? p.getOwner().getEmail() : null;
             r.createdAt  = p.getCreatedAt();
