@@ -20,6 +20,7 @@ public class ProjectDto {
         private Long ownerId;
         private String ownerName;
         private String ownerEmail;
+        private boolean archived;
         private LocalDateTime createdAt;
 
         public static Response from(Project p) {
@@ -30,6 +31,7 @@ public class ProjectDto {
             r.ownerId    = p.getOwner() != null ? p.getOwner().getId() : null;
             r.ownerName  = p.getOwner() != null ? p.getOwner().getDisplayName() : null;
             r.ownerEmail = p.getOwner() != null ? p.getOwner().getEmail() : null;
+            r.archived   = p.isArchived();
             r.createdAt  = p.getCreatedAt();
             return r;
         }

@@ -27,7 +27,6 @@ public class ProjectService {
         p.setName(req.getName());
         p.setOwner(creator);
         p.setCreatedBy(creator);
-        // 自動繼承建立者所屬科（部門隔離的核心）
         if (creator.getDepartment() != null) {
             p.setDepartment(creator.getDepartment());
         }
@@ -37,24 +36,48 @@ public class ProjectService {
     }
 
     @Transactional(readOnly = true)
-    public List<Project> listForUser(User user) {
+    public List<Project> listForUser(User user, boolean archived) {
         return switch (user.getRole()) {
             case DIRECTOR -> {
-                // 部長自建的專案（掛在部層級）+ 下屬科的所有專案
-                List<Project> own = projectRepository.findByDepartmentId(user.getDepartment().getId());
+                List<Project> own = projectRepository.findByDepartmentIdAndArchived(
+                    user.getDepartment().getId(), archived);
                 List<Long> sectionIds = departmentRepository.findByParentId(user.getDepartment().getId())
                     .stream().map(Department::getId).toList();
                 List<Project> sectionProjects = sectionIds.isEmpty()
-                    ? List.of() : projectRepository.findBySectionIds(sectionIds);
+                    ? List.of() : projectRepository.findBySectionIds(sectionIds, archived);
                 yield java.util.stream.Stream.concat(own.stream(), sectionProjects.stream()).toList();
             }
             case SECTION_CHIEF, PROJECT_LEADER ->
-                // 科長/Leader 查本科所有專案
-                projectRepository.findByDepartmentId(user.getDepartment().getId());
+                projectRepository.findByDepartmentIdAndArchived(user.getDepartment().getId(), archived);
             case PROJECT_MEMBER ->
-                // Member 只能看自己被加入的專案
-                projectRepository.findByMemberOrOwner(user.getId());
+                projectRepository.findByMemberOrOwner(user.getId(), archived);
         };
+    }
+
+    @Transactional
+    public void archiveProject(Long projectId, User caller) {
+        Project p = getById(projectId);
+        checkArchivePermission(p, caller);
+        p.setArchived(true);
+        projectRepository.save(p);
+    }
+
+    @Transactional
+    public void unarchiveProject(Long projectId, User caller) {
+        Project p = getById(projectId);
+        checkArchivePermission(p, caller);
+        p.setArchived(false);
+        projectRepository.save(p);
+    }
+
+    private void checkArchivePermission(Project p, User caller) {
+        boolean isOwner = p.getOwner() != null && p.getOwner().getId().equals(caller.getId());
+        boolean isChief = caller.getRole() == User.Role.SECTION_CHIEF
+            && p.getDepartment() != null
+            && p.getDepartment().getId().equals(caller.getDepartment().getId());
+        if (!isOwner && !isChief) {
+            throw new SecurityException("只有專案負責人或科長可歸檔/還原專案");
+        }
     }
 
     @Transactional
@@ -93,41 +116,35 @@ public class ProjectService {
             .orElseThrow(() -> new EntityNotFoundException("專案不存在"));
     }
 
-    // 判斷是否有寫入（編輯WBS）權限
     public boolean canWriteProject(Long projectId, User user) {
         Project project = getById(projectId);
+        // 歸檔專案全員唯讀
+        if (project.isArchived()) return false;
         return switch (user.getRole()) {
             case DIRECTOR ->
-                // 部長只能寫自己建立的專案（owner），下屬科的專案僅能讀
                 project.getOwner() != null && project.getOwner().getId().equals(user.getId());
             case SECTION_CHIEF ->
-                // 科長可寫本科所有專案
                 project.getDepartment() != null
                 && project.getDepartment().getId().equals(user.getDepartment().getId());
             case PROJECT_LEADER, PROJECT_MEMBER ->
-                // Leader/Member 只能寫自己被加入的專案
                 isMember(projectId, user.getId());
         };
     }
 
-    // 判斷是否有讀取權限
     public boolean canReadProject(Long projectId, User user) {
         Project project = getById(projectId);
         return switch (user.getRole()) {
             case DIRECTOR -> {
                 if (project.getDepartment() == null) yield false;
                 Department dept = project.getDepartment();
-                // 自己建立的部層級專案，或下屬科的專案
                 yield dept.getId().equals(user.getDepartment().getId())
                     || (dept.getParent() != null
                         && dept.getParent().getId().equals(user.getDepartment().getId()));
             }
             case SECTION_CHIEF, PROJECT_LEADER ->
-                // 科長/Leader 可讀本科所有專案
                 project.getDepartment() != null
                 && project.getDepartment().getId().equals(user.getDepartment().getId());
             case PROJECT_MEMBER ->
-                // Member 只能讀自己被加入的專案
                 isMember(projectId, user.getId());
         };
     }

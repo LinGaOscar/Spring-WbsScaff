@@ -25,6 +25,9 @@ public class ProjectController {
     @GetMapping("/projects")
     public String projectsPage() { return "project/list"; }
 
+    @GetMapping("/projects/history")
+    public String historyPage() { return "project/history"; }
+
     @GetMapping("/admin/members")
     public String membersPage(@AuthenticationPrincipal UserDetails userDetails) {
         User user = userRepository.findByEmail(userDetails.getUsername()).orElseThrow();
@@ -50,12 +53,31 @@ public class ProjectController {
     @GetMapping("/api/projects")
     @ResponseBody
     public ApiResponse<List<ProjectDto.Response>> listProjects(
+            @RequestParam(defaultValue = "false") boolean archived,
             @AuthenticationPrincipal UserDetails userDetails) {
         User user = userRepository.findByEmail(userDetails.getUsername())
             .orElseThrow(() -> new EntityNotFoundException("使用者不存在"));
         return ApiResponse.ok(
-            projectService.listForUser(user)
+            projectService.listForUser(user, archived)
                 .stream().map(ProjectDto.Response::from).toList());
+    }
+
+    @PatchMapping("/api/projects/{id}/archive")
+    @ResponseBody
+    public ApiResponse<Void> archiveProject(@PathVariable Long id,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        User user = userRepository.findByEmail(userDetails.getUsername()).orElseThrow();
+        projectService.archiveProject(id, user);
+        return ApiResponse.ok(null);
+    }
+
+    @PatchMapping("/api/projects/{id}/unarchive")
+    @ResponseBody
+    public ApiResponse<Void> unarchiveProject(@PathVariable Long id,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        User user = userRepository.findByEmail(userDetails.getUsername()).orElseThrow();
+        projectService.unarchiveProject(id, user);
+        return ApiResponse.ok(null);
     }
 
     @PostMapping("/api/projects")

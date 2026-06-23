@@ -31,7 +31,7 @@ class ProjectRepositoryTest {
         p.setDepartment(dept); p.setOwner(owner); p.setCreatedBy(owner);
         projectRepository.save(p);
 
-        List<Project> result = projectRepository.findByDepartmentId(dept.getId());
+        List<Project> result = projectRepository.findByDepartmentIdAndArchived(dept.getId(), false);
         assertThat(result).hasSize(1);
     }
 }

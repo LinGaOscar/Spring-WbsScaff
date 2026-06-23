@@ -32,6 +32,9 @@ public class Project {
     @JoinColumn(name = "created_by")
     private User createdBy;
 
+    @Column(nullable = false)
+    private boolean archived = false;
+
     @CreationTimestamp private LocalDateTime createdAt;
     @UpdateTimestamp  private LocalDateTime updatedAt;
 }

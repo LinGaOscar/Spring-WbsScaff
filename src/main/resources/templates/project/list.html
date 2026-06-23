@@ -3,6 +3,11 @@
 <head>
   <meta charset="UTF-8"><title>專案列表</title>
   <link rel="stylesheet" th:href="@{/css/app.css}">
+  <style>
+    .archive-btn { position:absolute; top:0.6rem; right:0.6rem; padding:0.2rem 0.5rem; font-size:0.75rem; opacity:0; transition:opacity 0.15s; }
+    .project-card:hover .archive-btn { opacity:1; }
+    .project-card { position:relative; }
+  </style>
 </head>
 <body>
   <div th:replace="~{fragments/header :: header}"></div>
@@ -23,6 +28,10 @@
             <span>負責人：{{ p.ownerName }}</span>
             <span v-if="p.departmentName">｜{{ p.departmentName }}</span>
           </div>
+          <!-- 歸檔按鈕（hover 才顯示，只有 canCreate 身份才看得到） -->
+          <button v-if="canCreate" class="btn btn-sm archive-btn"
+                  @click.stop="archive(p)"
+                  title="歸檔此專案">歸檔</button>
         </div>
       </div>
       <p v-else style="color:#636e72">尚無專案</p>
@@ -49,22 +58,21 @@
     const CSRF_HEADER = /*[[${_csrf.headerName}]]*/ 'X-CSRF-TOKEN';
     const CSRF_TOKEN  = /*[[${_csrf.token}]]*/ '';
     const USER_ROLE   = /*[[${#authentication.principal.authorities[0].authority}]]*/ '';
-    const CAN_CREATE  = /*[[${#authentication.principal.username}]]*/ '' !== '';
   </script>
   <script>
     const { createApp, ref, onMounted } = Vue;
+    const h   = () => ({ 'Content-Type': 'application/json', [CSRF_HEADER]: CSRF_TOKEN });
+    const api = (url, opt={}) => fetch(url, { headers: h(), ...opt }).then(r => r.json());
+
     createApp({
       setup() {
-        const projects = ref([]);
-        const error = ref('');
-        const modal = ref({ open: false, name: '' });
+        const projects  = ref([]);
+        const error     = ref('');
+        const modal     = ref({ open: false, name: '' });
         const canCreate = ref(false);
 
-        const h = () => ({ 'Content-Type': 'application/json', [CSRF_HEADER]: CSRF_TOKEN });
-
         async function load() {
-          const res = await fetch('/api/projects');
-          const d = await res.json();
+          const d = await api('/api/projects');
           if (d.success) projects.value = d.data;
         }
 
@@ -72,23 +80,28 @@
         function go(id) { window.location.href = `/projects/${id}`; }
 
         async function submit() {
-          const res = await fetch('/api/projects', {
-            method: 'POST', headers: h(),
-            body: JSON.stringify({ name: modal.value.name })
+          const d = await api('/api/projects', {
+            method: 'POST', body: JSON.stringify({ name: modal.value.name })
           });
-          const d = await res.json();
           if (d.success) { modal.value.open = false; load(); }
           else error.value = d.message;
         }
 
+        async function archive(p) {
+          if (!confirm(`確定歸檔「${p.name}」？歸檔後 WBS 將變為唯讀。`)) return;
+          const d = await api(`/api/projects/${p.id}/archive`, { method: 'PATCH' });
+          if (d.success) load();
+          else error.value = d.message || '歸檔失敗';
+        }
+
         onMounted(() => {
           load();
-          fetch('/api/users/me').then(r => r.json()).then(d => {
-            if (d.success) canCreate.value = d.data.canCreateProject || USER_ROLE === 'ROLE_ADMIN';
+          api('/api/users/me').then(d => {
+            if (d.success) canCreate.value = d.data.canCreateProject;
           }).catch(() => {});
         });
 
-        return { projects, error, modal, canCreate, openCreate, go, submit };
+        return { projects, error, modal, canCreate, openCreate, go, submit, archive };
       }
     }).mount('#app');
   </script>
