@@ -10,8 +10,14 @@
 .wbs-title-input { flex:1; min-width:80px; border:none; border-bottom:2px solid #0984e3; outline:none; font-size:0.9rem; padding:0; }
 .wbs-field-input { flex-shrink:0; font-size:0.82rem; border:1px solid #e0e0e0; border-radius:3px; padding:2px 4px; background:#fafafa; }
 .wbs-field-input[type="text"] { width:76px; }
-.wbs-field-input[type="date"] { width:104px; }
-.wbs-owner-select { width:110px; max-width:110px; }
+.wbs-owner-select { width:106px; max-width:106px; }
+/* 日期欄位：無值只顯示 icon，有值顯示 icon+日期 */
+.wbs-date-btn { position:relative; display:inline-flex; align-items:center; gap:3px; flex-shrink:0; cursor:pointer; font-size:0.82rem; border:1px solid #e0e0e0; border-radius:3px; padding:2px 5px; background:#fafafa; white-space:nowrap; min-width:26px; }
+.wbs-date-btn:hover:not(.is-locked) { border-color:#74b9ff; background:#f0f8ff; }
+.wbs-date-icon { font-size:0.85rem; line-height:1; }
+.wbs-date-text { font-size:0.78rem; color:#2d3436; }
+.wbs-date-btn.is-locked { cursor:default; opacity:0.6; }
+.wbs-date-overlay { position:absolute; inset:0; width:100%; height:100%; opacity:0; cursor:pointer; }
 .wbs-status-badge { font-size:0.75rem; border:1px solid; border-radius:3px; padding:2px 6px; cursor:pointer; white-space:nowrap; }
 .status-not_started .wbs-status-badge { color:#636e72; border-color:#636e72; }
 .status-in_progress .wbs-status-badge { color:#e67e22; border-color:#e67e22; }

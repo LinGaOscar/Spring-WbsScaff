@@ -29,17 +29,25 @@
             <select class="wbs-field-input wbs-owner-select" v-model="editOwner"
                     :disabled="locked"
                     @change="!locked && commitField('owner', editOwner)">
-              <option value="">— 負責人 —</option>
+              <option value="">負責人</option>
               <option v-for="m in projectMembers" :key="m.userId" :value="m.displayName">
                 {{ m.displayName }}
               </option>
             </select>
-            <input class="wbs-field-input" type="date" v-model="editStartDate"
-                   :readonly="locked"
-                   @blur="!locked && commitField('startDate', editStartDate)" />
-            <input class="wbs-field-input" type="date" v-model="editEndDate"
-                   :readonly="locked"
-                   @blur="!locked && commitField('endDate', editEndDate)" />
+            <span class="wbs-date-btn" :class="{'has-date':!!editStartDate,'is-locked':locked}">
+              <span class="wbs-date-icon">📅</span>
+              <span v-if="editStartDate" class="wbs-date-text">{{ fmtDate(editStartDate) }}</span>
+              <input v-if="!locked" type="date" v-model="editStartDate"
+                     class="wbs-date-overlay"
+                     @change="commitField('startDate', editStartDate)" />
+            </span>
+            <span class="wbs-date-btn" :class="{'has-date':!!editEndDate,'is-locked':locked}">
+              <span class="wbs-date-icon">📅</span>
+              <span v-if="editEndDate" class="wbs-date-text">{{ fmtDate(editEndDate) }}</span>
+              <input v-if="!locked" type="date" v-model="editEndDate"
+                     class="wbs-date-overlay"
+                     @change="commitField('endDate', editEndDate)" />
+            </span>
             <input class="wbs-field-input" type="text" v-model="editNotes"
                    placeholder="備註" :readonly="locked"
                    @blur="!locked && commitField('notes', editNotes)" />
@@ -117,10 +125,16 @@
           emit('drop-item', { parentId: props.node.id, title });
         }
 
+        function fmtDate(d) {
+          if (!d) return '';
+          const [, m, day] = d.split('-');
+          return `${m}/${day}`;
+        }
+
         return { editTitle, titleInput, editOwner, editStartDate, editEndDate, editNotes,
                  isDragOver, projectMembers,
                  startEdit, commitEdit, cycleStatus, commitField,
-                 onMouseEnter, onMouseLeave, nodeCursors, onNodeDrop, STATUS_LABEL };
+                 onMouseEnter, onMouseLeave, nodeCursors, onNodeDrop, STATUS_LABEL, fmtDate };
       }
     });
 
