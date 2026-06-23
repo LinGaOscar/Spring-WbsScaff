@@ -130,40 +130,20 @@ public class TemplateService {
             .orElseThrow(() -> new EntityNotFoundException("專案不存在"));
         List<WbsTemplateNode> nodes = nodeRepository.findByTemplate_IdOrderBySortOrder(templateId);
 
-        // 建立父節點對照表，用於壓平超過兩層的結構
-        Map<Long, Long> tplParentMap = new HashMap<>();
-        for (WbsTemplateNode n : nodes) {
-            if (n.getParentId() != null) tplParentMap.put(n.getId(), n.getParentId());
-        }
-        // 每個非根節點找到其最上層根節點（level 1）
-        Map<Long, Long> rootAncestor = new HashMap<>();
-        for (WbsTemplateNode n : nodes) {
-            if (n.getParentId() == null) {
-                rootAncestor.put(n.getId(), null);
-            } else {
-                Long cur = n.getParentId();
-                while (tplParentMap.containsKey(cur)) cur = tplParentMap.get(cur);
-                rootAncestor.put(n.getId(), cur);
-            }
-        }
-
+        // 多輪處理：父節點建立後才處理子節點，支援任意層深度
         Map<Long, Long> tplIdToWbsId = new HashMap<>();
-        // 第一輪：建立根節點
-        for (WbsTemplateNode tNode : nodes) {
-            if (tNode.getParentId() == null) {
-                WbsNode wNode = new WbsNode();
-                wNode.setProject(project);
-                wNode.setTitle(tNode.getTitle());
-                wNode.setSortOrder(tNode.getSortOrder());
-                wbsRepository.save(wNode);
-                tplIdToWbsId.put(tNode.getId(), wNode.getId());
-            }
-        }
-        // 第二輪：所有非根節點一律壓平為 level 2（父節點 = 其根祖先）
-        for (WbsTemplateNode tNode : nodes) {
-            if (tNode.getParentId() != null) {
-                Long rootTplId = rootAncestor.get(tNode.getId());
-                Long parentWbsId = tplIdToWbsId.get(rootTplId);
+        List<WbsTemplateNode> remaining = new ArrayList<>(nodes);
+        while (!remaining.isEmpty()) {
+            List<WbsTemplateNode> deferred = new ArrayList<>();
+            for (WbsTemplateNode tNode : remaining) {
+                Long parentWbsId = null;
+                if (tNode.getParentId() != null) {
+                    if (!tplIdToWbsId.containsKey(tNode.getParentId())) {
+                        deferred.add(tNode); // 父節點尚未建立，下輪再試
+                        continue;
+                    }
+                    parentWbsId = tplIdToWbsId.get(tNode.getParentId());
+                }
                 WbsNode wNode = new WbsNode();
                 wNode.setProject(project);
                 wNode.setTitle(tNode.getTitle());
@@ -172,6 +152,7 @@ public class TemplateService {
                 wbsRepository.save(wNode);
                 tplIdToWbsId.put(tNode.getId(), wNode.getId());
             }
+            remaining = deferred;
         }
     }
 

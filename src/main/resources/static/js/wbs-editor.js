@@ -6,13 +6,13 @@
 
     const WbsNodeComp = defineComponent({
       name: 'wbs-node',
-      props: ['node', 'cursors', 'locked'],
+      props: ['node', 'cursors', 'locked', 'depth'],
       emits: ['add-child','delete','update','cursor-move','drop-item'],
       template: `
         <div class="wbs-node-wrap">
           <div class="wbs-node" :class="['status-'+node.status.toLowerCase(), {'drag-over': isDragOver}]"
                @mouseenter="onMouseEnter(node.id)" @mouseleave="onMouseLeave()"
-               @dragover.prevent="isDragOver=(!locked && !node.parentId)"
+               @dragover.prevent="isDragOver=(!locked && (depth||1) < 3)"
                @dragleave="isDragOver=false"
                @drop.stop="onNodeDrop($event)">
             <span class="wbs-toggle" @click="node._open=!node._open">
@@ -44,7 +44,7 @@
                    placeholder="備註" :readonly="locked"
                    @blur="!locked && commitField('notes', editNotes)" />
             <div class="wbs-node-actions" v-if="!locked">
-              <button v-if="!node.parentId" @click="$emit('add-child', node)">+ 子</button>
+              <button v-if="(depth||1) < 3" @click="$emit('add-child', {node, depth: depth||1})">+ 子</button>
               <button @click="$emit('delete', node)">刪</button>
             </div>
             <div class="cursor-indicators">
@@ -55,7 +55,7 @@
             </div>
           </div>
           <div class="wbs-children" v-if="node._open && node.children?.length">
-            <wbs-node v-for="c in node.children" :key="c.id" :node="c" :cursors="cursors" :locked="locked"
+            <wbs-node v-for="c in node.children" :key="c.id" :node="c" :cursors="cursors" :locked="locked" :depth="(depth||1)+1"
                       @add-child="$emit('add-child',$event)"
                       @delete="$emit('delete',$event)"
                       @update="$emit('update',$event)"
@@ -108,10 +108,10 @@
             c => c.hoveringNodeId === nodeId || c.editingNodeId === nodeId
           );
         }
-        // 快速子項拖曳到此節點：只允許根節點接收（最多兩層）
+        // 快速子項拖曳到此節點：L1/L2 可接收（最多三層）
         function onNodeDrop(event) {
           isDragOver.value = false;
-          if (props.locked || props.node.parentId) return;
+          if (props.locked || (props.depth || 1) >= 3) return;
           const title = event.dataTransfer.getData('text/plain');
           if (!title) return;
           emit('drop-item', { parentId: props.node.id, title });
@@ -285,8 +285,8 @@
           });
         }
 
-        async function addChild(parent) {
-          if (parent.parentId) return; // 只允許根節點有子節點
+        async function addChild({ node: parent, depth }) {
+          if ((depth || 1) >= 3) return; // 最多三層
           const title = prompt('子節點名稱');
           if (!title) return;
           const siblings = flatNodes.value.filter(n => n.parentId === parent.id);

@@ -87,7 +87,7 @@
              @drop="onDropToRoot"
              :class="{'drag-over': treeHighlight}"
              v-if="roots.length">
-          <wbs-node v-for="n in roots" :key="n.id" :node="n" :locked="locked"
+          <wbs-node v-for="n in roots" :key="n.id" :node="n" :locked="locked" :depth="1"
                     @add-child="addChild"
                     @delete="deleteNode"
                     @update="updateNode"
