@@ -1,5 +1,5 @@
     const { createApp, ref, computed, onMounted, defineComponent, provide, inject } = Vue;
-    const STATUS_LABEL = { NOT_STARTED:'未開始', IN_PROGRESS:'進行中', DONE:'完成' };
+    const STATUS_LABEL = { NOT_STARTED:'未開始', IN_PROGRESS:'進行中', DONE:'已完成' };
     const STATUS_CYCLE = { NOT_STARTED:'IN_PROGRESS', IN_PROGRESS:'DONE', DONE:'NOT_STARTED' };
     const h = () => ({ 'Content-Type':'application/json', [CSRF_HEADER]:CSRF_TOKEN });
     const api = (url, opt={}) => fetch(url, { headers: h(), ...opt }).then(r => r.json());
@@ -18,14 +18,14 @@
             <span class="wbs-toggle" @click="node._open=!node._open">
               {{ node.children?.length ? (node._open?'▼':'▶') : '　' }}
             </span>
+            <span class="wbs-status-badge" @click="!locked && cycleStatus()">
+              {{ STATUS_LABEL[node.status] }}
+            </span>
             <span class="wbs-title" v-if="!node._editing"
                   @dblclick="!locked && startEdit()">{{ node.title }}</span>
             <input class="wbs-title-input" v-else v-model="editTitle"
                    @blur="commitEdit" @keyup.enter="commitEdit" @keyup.escape="node._editing=false"
                    ref="titleInput" />
-            <span class="wbs-status-badge" @click="!locked && cycleStatus()">
-              {{ STATUS_LABEL[node.status] }}
-            </span>
             <select class="wbs-field-input wbs-owner-select" v-model="editOwner"
                     :disabled="locked"
                     @change="!locked && commitField('owner', editOwner)">
@@ -127,8 +127,7 @@
 
         function fmtDate(d) {
           if (!d) return '';
-          const [, m, day] = d.split('-');
-          return `${m}/${day}`;
+          return d.replace(/-/g, '/');
         }
 
         return { editTitle, titleInput, editOwner, editStartDate, editEndDate, editNotes,
