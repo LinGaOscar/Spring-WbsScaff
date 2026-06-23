@@ -3,7 +3,7 @@
 /* 根節點：較深背景 + 左側藍色強調線，視覺上明顯區隔父層 */
 .wbs-tree > .wbs-node-wrap > .wbs-node { background:#eef4fb; border:1px solid #b2d4f0; border-left:4px solid #0984e3; font-weight:600; }
 .wbs-owner-select { appearance:auto; background:#fff; cursor:pointer; }
-.wbs-node { display:flex; align-items:center; gap:0.4rem; padding:0.5rem 0.5rem; background:#fff; border-radius:6px; margin-bottom:6px; border:1px solid #dfe6e9; min-height:40px; }
+.wbs-node { position:relative; display:flex; align-items:center; gap:0.4rem; padding:0.5rem 0.5rem; background:#fff; border-radius:6px; margin-bottom:6px; border:1px solid #dfe6e9; min-height:40px; }
 .wbs-node:hover { border-color:#74b9ff; box-shadow:0 1px 4px rgba(9,132,227,0.1); }
 .wbs-toggle { cursor:pointer; width:1.2rem; flex-shrink:0; color:#636e72; }
 .wbs-title { flex:1; font-size:0.9rem; cursor:default; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:80px; }
@@ -61,6 +61,20 @@
 /* 鎖定按鈕 */
 .btn-locked { background:#fdcb6e; border-color:#e17055; color:#2d3436; }
 .btn-editing { background:#55efc4; border-color:#00b894; color:#2d3436; }
+.btn-delete-active { background:#ff7675; border-color:#d63031; color:#fff; }
+.btn-unsaved { background:#74b9ff; border-color:#0984e3; color:#2d3436; font-weight:600; }
+
+/* 刪除模式 shake 動畫 */
+@keyframes wbs-shake {
+  0%,100% { transform:translateX(0) rotate(0); }
+  20% { transform:translateX(-2px) rotate(-0.4deg); }
+  40% { transform:translateX(2px) rotate(0.4deg); }
+  60% { transform:translateX(-1px) rotate(-0.2deg); }
+  80% { transform:translateX(1px) rotate(0.2deg); }
+}
+.wbs-node.is-delete-mode { animation:wbs-shake 0.5s ease-in-out infinite; cursor:pointer; }
+.wbs-delete-overlay { position:absolute; inset:0; z-index:5; border-radius:6px; background:rgba(214,48,49,0.06); cursor:pointer; }
+.wbs-delete-overlay:hover { background:rgba(214,48,49,0.18); }
 .wbs-node input[readonly] { opacity:0.55; cursor:default; background:#f8f9fa; }
 
 /* 模板選擇選項 */

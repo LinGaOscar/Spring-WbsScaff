@@ -1,4 +1,4 @@
-    const { createApp, ref, computed, onMounted, defineComponent, provide, inject } = Vue;
+    const { createApp, ref, computed, onMounted, defineComponent, provide, inject, watch } = Vue;
     const STATUS_LABEL = { NOT_STARTED:'未開始', IN_PROGRESS:'進行中', DONE:'已完成' };
     const STATUS_CYCLE = { NOT_STARTED:'IN_PROGRESS', IN_PROGRESS:'DONE', DONE:'NOT_STARTED' };
     const h = () => ({ 'Content-Type':'application/json', [CSRF_HEADER]:CSRF_TOKEN });
@@ -6,11 +6,11 @@
 
     const WbsNodeComp = defineComponent({
       name: 'wbs-node',
-      props: ['node', 'cursors', 'locked', 'depth'],
+      props: ['node', 'cursors', 'locked', 'depth', 'deleteMode'],
       emits: ['add-child','delete','update','cursor-move','drop-item'],
       template: `
         <div class="wbs-node-wrap">
-          <div class="wbs-node" :class="['status-'+node.status.toLowerCase(), {'drag-over': isDragOver}]"
+          <div class="wbs-node" :class="['status-'+node.status.toLowerCase(), {'drag-over': isDragOver, 'is-delete-mode': deleteMode && !locked}]"
                @mouseenter="onMouseEnter(node.id)" @mouseleave="onMouseLeave()"
                @dragover.prevent="isDragOver=(!locked && (depth||1) < 3)"
                @dragleave="isDragOver=false"
@@ -48,13 +48,14 @@
                      class="wbs-date-overlay"
                      @change="commitField('endDate', editEndDate)" />
             </span>
-            <input class="wbs-field-input" type="text" v-model="editNotes"
+            <input v-if="(depth||1) >= 3" class="wbs-field-input" type="text" v-model="editNotes"
                    placeholder="備註" :readonly="locked"
                    @blur="!locked && commitField('notes', editNotes)" />
-            <div class="wbs-node-actions" v-if="!locked">
+            <div class="wbs-node-actions" v-if="!locked && !deleteMode">
               <button v-if="(depth||1) < 3" @click="$emit('add-child', {node, depth: depth||1})">+ 子</button>
-              <button @click="$emit('delete', node)">刪</button>
             </div>
+            <div v-if="deleteMode && !locked" class="wbs-delete-overlay"
+                 @click.stop="$emit('delete', node)"></div>
             <div class="cursor-indicators">
               <span v-for="c in nodeCursors(node.id)" :key="c.userId"
                     class="cursor-dot" :style="{background:c.color}"
@@ -63,7 +64,7 @@
             </div>
           </div>
           <div class="wbs-children" v-if="node._open && node.children?.length">
-            <wbs-node v-for="c in node.children" :key="c.id" :node="c" :cursors="cursors" :locked="locked" :depth="(depth||1)+1"
+            <wbs-node v-for="c in node.children" :key="c.id" :node="c" :cursors="cursors" :locked="locked" :depth="(depth||1)+1" :delete-mode="deleteMode"
                       @add-child="$emit('add-child',$event)"
                       @delete="$emit('delete',$event)"
                       @update="$emit('update',$event)"
@@ -150,7 +151,10 @@
         const availableTemplates   = ref([]);
         const onlineUsers  = ref([]);
         const cursors      = ref({});
-        const stompClient  = ref(null);
+        const stompClient    = ref(null);
+        const deleteMode     = ref(false);
+        const pendingChanges = ref({});
+        const hasPending     = computed(() => Object.keys(pendingChanges.value).length > 0);
 
         const projectMembers = ref([]);
 
@@ -311,18 +315,34 @@
 
         async function deleteNode(node) {
           if (!confirm(`確定刪除「${node.title}」及其所有子節點？`)) return;
+          const updated = { ...pendingChanges.value };
+          delete updated[node.id];
+          pendingChanges.value = updated;
           stompClient.value.publish({
             destination: `/app/project/${PROJECT_ID}/node/delete`,
             headers: { nodeId: String(node.id) }
           });
         }
 
-        async function updateNode({ node, changes }) {
-          stompClient.value.publish({
-            destination: `/app/project/${PROJECT_ID}/node/update`,
-            headers: { nodeId: String(node.id) },
-            body: JSON.stringify(changes)
-          });
+        function updateNode({ node, changes }) {
+          const idx = flatNodes.value.findIndex(n => n.id === node.id);
+          if (idx !== -1) flatNodes.value[idx] = { ...flatNodes.value[idx], ...changes };
+          pendingChanges.value = {
+            ...pendingChanges.value,
+            [node.id]: { ...(pendingChanges.value[node.id] || {}), ...changes }
+          };
+        }
+
+        function saveAll() {
+          if (!hasPending.value || !stompClient.value?.connected) return;
+          for (const [nodeId, changes] of Object.entries(pendingChanges.value)) {
+            stompClient.value.publish({
+              destination: `/app/project/${PROJECT_ID}/node/update`,
+              headers: { nodeId },
+              body: JSON.stringify(changes)
+            });
+          }
+          pendingChanges.value = {};
         }
 
         function exportCsv() {
@@ -392,6 +412,10 @@
           connectWs();
         });
 
+        watch(locked, (isLocked) => {
+          if (isLocked && hasPending.value) saveAll();
+        });
+
         const isReadOnly = typeof READ_ONLY !== 'undefined' ? READ_ONLY : false;
         return {
           roots, projectName, quickItems, panelCollapsed, locked, treeHighlight,
@@ -400,7 +424,8 @@
           exportCsv, exportXlsx, hasNodes,
           applyTemplate, saveAsTemplate,
           onlineUsers, cursors, sendCursor,
-          onDragStart, onDropToRoot, handleDropItem
+          onDragStart, onDropToRoot, handleDropItem,
+          deleteMode, hasPending, saveAll
         };
       }
     }).mount('#app');
