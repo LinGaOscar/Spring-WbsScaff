@@ -125,23 +125,29 @@
 
 ### 測試帳號
 
+> 所有帳號密碼統一為 **`test1234`**
+
 | Email | 密碼 | 角色 | 所屬 | 說明 |
 |---|---|---|---|---|
-| `director@company.com` | `director1234` | `DIRECTOR` | 資訊部 | 部長，可查閱下屬科所有專案（唯讀），可自建專案 |
-| `chief@infotech.com` | `chief1234` | `SECTION_CHIEF` | 資訊科 | 科長，管理資訊科所有專案與成員 |
-| `leader@infotech.com` | `leader1234` | `PROJECT_LEADER` | 資訊科 | 專案 Leader，可建立與管理自己的專案 |
-| `member1@infotech.com` | `member1234` | `PROJECT_MEMBER` | 資訊科 | 一般成員，僅能操作被加入的專案 |
-| `member2@infotech.com` | `member2_1234` | `PROJECT_MEMBER` | 資訊科 | 一般成員 |
-| `chief2@infotech.com` | `chief2_1234` | `SECTION_CHIEF` | 資訊科2 | 科長 |
-| `leader2@infotech.com` | `leader2_1234` | `PROJECT_LEADER` | 資訊科2 | 專案 Leader |
-| `member3@infotech.com` | `member3_1234` | `PROJECT_MEMBER` | 資訊科2 | 一般成員 |
+| `director@company.com` | `test1234` | `DIRECTOR` | 資訊部 | 部長，可查閱下屬科所有專案（唯讀），可自建專案 |
+| `chief@infotech.com` | `test1234` | `SECTION_CHIEF` | 資訊科 | 科長，管理資訊科所有專案與成員 |
+| `leader@infotech.com` | `test1234` | `PROJECT_LEADER` | 資訊科 | 專案 Leader，可建立與管理自己的專案 |
+| `member1@infotech.com` | `test1234` | `PROJECT_MEMBER` | 資訊科 | 一般成員，僅能操作被加入的專案 |
+| `member2@infotech.com` | `test1234` | `PROJECT_MEMBER` | 資訊科 | 一般成員 |
+| `chief2@infotech.com` | `test1234` | `SECTION_CHIEF` | 資訊科2 | 科長 |
+| `leader2@infotech.com` | `test1234` | `PROJECT_LEADER` | 資訊科2 | 專案 Leader |
+| `member3@infotech.com` | `test1234` | `PROJECT_MEMBER` | 資訊科2 | 一般成員 |
 
 ### 系統模板（全員可用）
 
 | 名稱 | 說明 |
 |---|---|
-| 新功能開發 | SIT + PROD 兩階段（功能開發用） |
-| 專案開發 | SIT + PROD 兩階段（含第三方測試） |
+| 系統開發標準 | SIT → UAT → PROD 三階段、三層結構標準模板 |
+
+**模板結構（3 層）**
+- L1：SIT / UAT / PROD
+- L2（各階段）：環境建置 / 系統開發（或使用者測試）/ 系統上線
+- L3（各工作包）：主機申請、防火牆開通、主機佈版、功能開發、功能驗測…等
 
 ### 測試專案
 
