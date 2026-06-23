@@ -23,8 +23,9 @@
     <!-- Vue App 包含快速面板 + 主編輯區 -->
     <div id="app" class="wbs-editor-wrap">
 
-      <!-- 左側快速子項面板 -->
-      <aside class="quick-panel" :class="{collapsed: panelCollapsed}">
+      <!-- 左側快速子項面板：只在可編輯時顯示 -->
+      <aside class="quick-panel" :class="{collapsed: panelCollapsed}"
+             v-show="!locked && !isReadOnly">
         <button class="panel-toggle-btn" @click="panelCollapsed=!panelCollapsed"
                 :title="panelCollapsed ? '展開快速子項' : '收合面板'">
           <span>{{ panelCollapsed ? '▶' : '◀' }}</span>
