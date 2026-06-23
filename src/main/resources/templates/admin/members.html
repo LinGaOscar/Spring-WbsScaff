@@ -5,8 +5,6 @@
   <title>專案人員管理</title>
   <link rel="stylesheet" th:href="@{/css/app.css}">
   <style>
-    .back-link { display:inline-flex; align-items:center; gap:0.3rem; font-size:0.85rem; color:#636e72; text-decoration:none; margin-bottom:1.25rem; }
-    .back-link:hover { color:#0984e3; }
     .project-card { background:#fff; border-radius:8px; padding:1.25rem 1.5rem; margin-bottom:1rem; box-shadow:0 1px 4px rgba(0,0,0,0.08); }
     .project-header { display:flex; justify-content:space-between; align-items:center; cursor:pointer; user-select:none; }
     .project-header h3 { font-size:1rem; margin:0; }
@@ -29,8 +27,9 @@
 </head>
 <body>
   <div th:replace="~{fragments/header :: header}"></div>
-  <main class="main-content" id="app" style="max-width:960px; margin:0 auto;">
-    <a href="/projects" class="back-link">← 返回專案列表</a>
+  <div class="layout">
+    <div th:replace="~{fragments/sidebar :: sidebar}"></div>
+    <main class="main-content" id="app">
     <div class="page-header">
       <h2>專案人員管理</h2>
     </div>
@@ -100,6 +99,7 @@
       </div>
     </div>
   </main>
+  </div>
   <div th:replace="~{fragments/footer :: footer}"></div>
 
   <script th:src="@{/js/vue.global.prod.min.js}"></script>
