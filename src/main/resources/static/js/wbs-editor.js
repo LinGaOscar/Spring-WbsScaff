@@ -155,6 +155,8 @@
         const deleteMode     = ref(false);
         const pendingChanges = ref({});
         const hasPending     = computed(() => Object.keys(pendingChanges.value).length > 0);
+        const searchQuery    = ref('');
+        const statusFilter   = ref('ALL');
 
         const projectMembers = ref([]);
 
@@ -162,7 +164,28 @@
         provide('locked', locked);
         provide('projectMembers', projectMembers);
 
-        const roots    = computed(() => buildTree(flatNodes.value));
+        const roots = computed(() => {
+          let nodes = flatNodes.value;
+          const q  = searchQuery.value.trim().toLowerCase();
+          const sf = statusFilter.value;
+          if (q || sf !== 'ALL') {
+            const map = {};
+            nodes.forEach(n => map[n.id] = n);
+            const matchIds = new Set(
+              nodes.filter(n =>
+                (!q || n.title.toLowerCase().includes(q)) &&
+                (sf === 'ALL' || n.status === sf)
+              ).map(n => n.id)
+            );
+            const vis = new Set(matchIds);
+            matchIds.forEach(id => {
+              let c = map[id];
+              while (c && c.parentId) { vis.add(c.parentId); c = map[c.parentId]; }
+            });
+            nodes = nodes.filter(n => vis.has(n.id));
+          }
+          return buildTree(nodes);
+        });
         const hasNodes = computed(() => flatNodes.value.length > 0);
 
         function buildTree(nodes) {
@@ -175,6 +198,12 @@
           });
           return result;
         }
+
+        function toggleAll(nodes, open) {
+          nodes.forEach(n => { n._open = open; if (n.children?.length) toggleAll(n.children, open); });
+        }
+        function expandAll()  { toggleAll(roots.value, true);  }
+        function collapseAll(){ toggleAll(roots.value, false); }
 
         async function load() {
           const [nd, pd, md] = await Promise.all([
@@ -425,7 +454,8 @@
           applyTemplate, saveAsTemplate,
           onlineUsers, cursors, sendCursor,
           onDragStart, onDropToRoot, handleDropItem,
-          deleteMode, hasPending, saveAll
+          deleteMode, hasPending, saveAll,
+          searchQuery, statusFilter, expandAll, collapseAll
         };
       }
     }).mount('#app');

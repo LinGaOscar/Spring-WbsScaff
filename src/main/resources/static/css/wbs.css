@@ -1,4 +1,10 @@
-.wbs-toolbar { display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem; }
+.wbs-toolbar { display:flex; justify-content:space-between; align-items:center; margin-bottom:0.6rem; }
+.wbs-view-bar { display:flex; align-items:center; gap:0.5rem; margin-bottom:1rem; flex-wrap:wrap; }
+.wbs-search-input { flex:1; min-width:160px; max-width:280px; padding:0.3rem 0.6rem; border:1px solid #dfe6e9; border-radius:4px; font-size:0.85rem; outline:none; }
+.wbs-search-input:focus { border-color:#0984e3; box-shadow:0 0 0 2px rgba(9,132,227,0.15); }
+.wbs-status-filter { padding:0.3rem 0.5rem; border:1px solid #dfe6e9; border-radius:4px; font-size:0.85rem; cursor:pointer; background:#fff; }
+.wbs-filter-hint { font-size:0.8rem; color:#636e72; }
+.wbs-clear-btn { font-size:0.8rem; color:#d63031; border-color:#d63031; }
 .wbs-actions { display:flex; gap:0.5rem; }
 /* 根節點：較深背景 + 左側藍色強調線，視覺上明顯區隔父層 */
 .wbs-tree > .wbs-node-wrap > .wbs-node { background:#eef4fb; border:1px solid #b2d4f0; border-left:4px solid #0984e3; font-weight:600; }

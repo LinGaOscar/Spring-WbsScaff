@@ -84,6 +84,25 @@
           </div>
         </div>
 
+        <!-- 搜尋 / 展開收合 / 狀態篩選 -->
+        <div class="wbs-view-bar" v-if="hasNodes">
+          <input type="text" v-model="searchQuery" placeholder="🔍 搜尋節點…" class="wbs-search-input" />
+          <button class="btn btn-sm" @click="expandAll" title="全展開">全展開</button>
+          <button class="btn btn-sm" @click="collapseAll" title="全收合">全收合</button>
+          <select v-if="!isReadOnly" v-model="statusFilter" class="wbs-status-filter">
+            <option value="ALL">全部狀態</option>
+            <option value="NOT_STARTED">未開始</option>
+            <option value="IN_PROGRESS">進行中</option>
+            <option value="DONE">已完成</option>
+          </select>
+          <span v-if="searchQuery.trim() || statusFilter !== 'ALL'" class="wbs-filter-hint">
+            找到 {{ roots.length }} 個項目
+          </span>
+          <button v-if="searchQuery.trim() || statusFilter !== 'ALL'"
+                  class="btn btn-sm wbs-clear-btn"
+                  @click="searchQuery=''; statusFilter='ALL'">✕ 清除</button>
+        </div>
+
         <!-- WBS 樹：同時作為根節點的 drop zone -->
         <div class="wbs-tree"
              @dragover.prevent="treeHighlight=!locked"
