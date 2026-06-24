@@ -13,20 +13,21 @@ public class CollabService {
         "#9b59b6", "#1abc9c", "#e67e22", "#34495e"
     };
 
-    // projectId → (userId → PresenceMessage)，記憶體內追蹤在線用戶，重啟後清空
+    // projectId → (userId → PresenceMessage)，記憶體內追蹤在線用戶，重啟後清空不影響資料
     public final Map<Long, Map<Long, PresenceMessage>> sessions = new ConcurrentHashMap<>();
 
+    // 使用位元遮罩確保非負數，避免 userId 為負數時造成陣列越界（Finding 1）
     public String userColor(Long userId) {
-        // 使用位元遮罩確保非負數，避免 userId 為負數時造成陣列越界（Finding 1）
         int colorIndex = (int) (userId & 0x7FFFFFFFL) % COLORS.length;
         return COLORS[colorIndex];
     }
 
-    /** getUserColor 為 userColor 的別名，供 CollabController join/leave 端點呼叫 */
+    // getUserColor 為 userColor 的別名，供 CollabController join/leave 端點呼叫
     public String getUserColor(Long userId) {
         return userColor(userId);
     }
 
+    // 加入時寫入記憶體 sessions，同一用戶重複加入只覆蓋不重複
     public void join(Long projectId, Long userId, String displayName) {
         sessions.computeIfAbsent(projectId, k -> new ConcurrentHashMap<>());
         PresenceMessage msg = new PresenceMessage();
@@ -37,12 +38,14 @@ public class CollabService {
         sessions.get(projectId).put(userId, msg);
     }
 
+    // 前端 beforeunload 觸發，減少「假在線」殘留；WebSocket 斷線也可在事件中呼叫
     public void leave(Long projectId, Long userId) {
         if (sessions.containsKey(projectId)) {
             sessions.get(projectId).remove(userId);
         }
     }
 
+    // 後進用戶訂閱 presence 時，回傳當前在線列表，讓其看到先來的協作者
     public List<PresenceMessage> getOnlineUsers(Long projectId) {
         return sessions.getOrDefault(projectId, Collections.emptyMap())
             .values().stream().toList();

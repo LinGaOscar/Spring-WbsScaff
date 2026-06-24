@@ -24,6 +24,7 @@ public class User {
     @Column(nullable = false, length = 100)
     private String displayName;
 
+    // 部（parent_id IS NULL）或科（parent_id NOT NULL）都可作為 department
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "department_id")
     private Department department;
@@ -32,6 +33,7 @@ public class User {
     @Column(nullable = false, length = 20)
     private Role role = Role.PROJECT_MEMBER;
 
+    // 軟刪除旗標：false 代表停用，不會出現在成員選單與登入驗證
     private boolean enabled = true;
 
     @CreationTimestamp

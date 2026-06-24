@@ -22,12 +22,14 @@ public class ProjectController {
     private final ProjectMemberRepository memberRepository;
     private final UserRepository userRepository;
 
+    // 返回 Thymeleaf 靜態殼頁，資料由前端 API 非同步載入
     @GetMapping("/projects")
     public String projectsPage() { return "project/list"; }
 
     @GetMapping("/projects/history")
     public String historyPage() { return "project/history"; }
 
+    // 只有科長或 Leader 才能進入成員管理頁，其他角色導回專案列表
     @GetMapping("/admin/members")
     public String membersPage(@AuthenticationPrincipal UserDetails userDetails) {
         User user = userRepository.findByEmail(userDetails.getUsername()).orElseThrow();
@@ -35,6 +37,7 @@ public class ProjectController {
         return "admin/members";
     }
 
+    // 讀取權限驗證後注入 readOnly 旗標，Thymeleaf 將其寫入 JS 全域變數供 Vue 判斷
     @GetMapping("/projects/{id}")
     public String projectDetailPage(@PathVariable Long id, Model model,
             @AuthenticationPrincipal UserDetails userDetails) {
@@ -50,6 +53,7 @@ public class ProjectController {
         return "project/detail";
     }
 
+    // 依角色回傳對應可見專案清單，支援 archived 參數切換現行/歷史
     @GetMapping("/api/projects")
     @ResponseBody
     public ApiResponse<List<ProjectDto.Response>> listProjects(
@@ -62,6 +66,7 @@ public class ProjectController {
                 .stream().map(ProjectDto.Response::from).toList());
     }
 
+    // 歸檔後專案進入唯讀歷史，不刪資料
     @PatchMapping("/api/projects/{id}/archive")
     @ResponseBody
     public ApiResponse<Void> archiveProject(@PathVariable Long id,
@@ -71,6 +76,7 @@ public class ProjectController {
         return ApiResponse.ok(null);
     }
 
+    // 還原歸檔讓專案回到可編輯狀態
     @PatchMapping("/api/projects/{id}/unarchive")
     @ResponseBody
     public ApiResponse<Void> unarchiveProject(@PathVariable Long id,
@@ -80,6 +86,7 @@ public class ProjectController {
         return ApiResponse.ok(null);
     }
 
+    // 只有科長與 Leader 才能建立專案，PROJECT_MEMBER 無此權限
     @PostMapping("/api/projects")
     @ResponseBody
     public ApiResponse<ProjectDto.Response> createProject(
@@ -102,6 +109,7 @@ public class ProjectController {
         return ApiResponse.ok(ProjectDto.Response.from(projectService.getById(id)));
     }
 
+    // 成員清單用於 WBS owner 下拉選單，只有有讀取權限者才能查詢
     @GetMapping("/api/projects/{id}/members")
     @ResponseBody
     public ApiResponse<List<ProjectDto.MemberResponse>> getMembers(@PathVariable Long id,
@@ -111,6 +119,7 @@ public class ProjectController {
             .stream().map(ProjectDto.MemberResponse::from).toList());
     }
 
+    // 統一讀取權限檢查，避免各 GET 端點重複撰寫
     private void checkProjectReadAccess(Long id, UserDetails userDetails) {
         User user = userRepository.findByEmail(userDetails.getUsername()).orElseThrow();
         if (!projectService.canReadProject(id, user)) {
@@ -118,6 +127,7 @@ public class ProjectController {
         }
     }
 
+    // 科長可管理本科任何專案成員；專案負責人可管理自己的專案
     @PostMapping("/api/projects/{id}/members")
     @ResponseBody
     public ApiResponse<Void> addMember(
@@ -139,6 +149,7 @@ public class ProjectController {
         return ApiResponse.ok(null);
     }
 
+    // 移除成員後立即失去 WBS 編輯權限
     @DeleteMapping("/api/projects/{id}/members/{userId}")
     @ResponseBody
     public ApiResponse<Void> removeMember(
@@ -159,13 +170,13 @@ public class ProjectController {
         return ApiResponse.ok(null);
     }
 
+    // 科長（本科專案）或專案 owner（含部長自建）可變更負責人
     @PatchMapping("/api/projects/{id}/owner")
     @ResponseBody
     public ApiResponse<Void> changeOwner(
             @PathVariable Long id,
             @RequestBody Map<String, Long> body,
             @AuthenticationPrincipal UserDetails userDetails) {
-        // 科長（本科專案）或專案 owner（含部長自建）可變更負責人
         User caller = userRepository.findByEmail(userDetails.getUsername()).orElseThrow();
         Project project = projectService.getById(id);
         boolean isSectionChief = caller.getRole() == User.Role.SECTION_CHIEF

@@ -19,6 +19,7 @@ public class WbsQuickItemController {
     private final WbsQuickItemRepository quickItemRepository;
     private final UserRepository userRepository;
 
+    // 只有科長或 Leader 才能進入管理頁，其他角色導回專案列表
     @GetMapping("/admin/quick-items")
     public String quickItemsPage(@AuthenticationPrincipal UserDetails userDetails) {
         User user = userRepository.findByEmail(userDetails.getUsername()).orElseThrow();
@@ -29,6 +30,7 @@ public class WbsQuickItemController {
         return "admin/quick-items";
     }
 
+    // 科成員看本科 + 全域項目；部長或無所屬科只看全域項目
     @GetMapping("/api/quick-items")
     @ResponseBody
     public ApiResponse<List<WbsQuickItemDto.Response>> list(
@@ -45,6 +47,7 @@ public class WbsQuickItemController {
         return ApiResponse.ok(items.stream().map(WbsQuickItemDto.Response::from).toList());
     }
 
+    // 建立的快速子項歸屬建立者的科，不可建立全域項目（全域只由 seed SQL 管理）
     @PostMapping("/api/quick-items")
     @ResponseBody
     public ApiResponse<WbsQuickItemDto.Response> create(
@@ -64,6 +67,7 @@ public class WbsQuickItemController {
         return ApiResponse.ok(WbsQuickItemDto.Response.from(quickItemRepository.save(item)));
     }
 
+    // 只能修改本科的快速子項，不可修改全域項目（section_id IS NULL）
     @PutMapping("/api/quick-items/{id}")
     @ResponseBody
     public ApiResponse<WbsQuickItemDto.Response> update(
@@ -84,6 +88,7 @@ public class WbsQuickItemController {
         return ApiResponse.ok(WbsQuickItemDto.Response.from(quickItemRepository.save(item)));
     }
 
+    // 只能刪除本科的快速子項，全域項目由 SQL migration 管理，不允許透過 API 刪除
     @DeleteMapping("/api/quick-items/{id}")
     @ResponseBody
     public ApiResponse<Void> delete(

@@ -16,6 +16,7 @@ import org.springframework.security.web.SecurityFilterChain;
 @EnableMethodSecurity
 public class SecurityConfig {
 
+    // REST API 走 CSRF header；WebSocket 透過 HttpOnly Session Cookie 驗證，不使用 CSRF token
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
@@ -41,11 +42,13 @@ public class SecurityConfig {
         return http.build();
     }
 
+    // BCrypt 預設 strength=10，足夠抵抗暴力破解，且與資料庫中 $2b$ 格式雜湊相容
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
 
+    // 手動暴露 AuthenticationManager bean，讓 AuthController 可直接注入使用
     @Bean
     public AuthenticationManager authenticationManager(
             AuthenticationConfiguration config) throws Exception {

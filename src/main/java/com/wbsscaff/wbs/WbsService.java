@@ -15,6 +15,7 @@ public class WbsService {
     private final WbsRepository wbsRepository;
     private final ProjectRepository projectRepository;
 
+    // 依 sortOrder 回傳，前端不需自行排序即可正確渲染樹狀結構
     public List<WbsDto.Response> getNodes(Long projectId) {
         return wbsRepository.findByProjectIdOrderBySortOrder(projectId)
             .stream().map(WbsDto.Response::from).toList();
@@ -33,7 +34,7 @@ public class WbsService {
             if (!parent.getProject().getId().equals(projectId)) {
                 throw new SecurityException("父節點不屬於此專案");
             }
-            // WBS 最多兩層：父節點必須是根節點（無 parent）
+            // WBS 最多兩層：父節點必須是根節點（無 parent），避免超過 L2 的深度
             if (parent.getParentId() != null) {
                 throw new IllegalStateException("WBS 最多兩層，不允許在子節點下新增節點");
             }
@@ -71,7 +72,7 @@ public class WbsService {
         deleteRecursive(nodeId);
     }
 
-    // 遞迴刪除子節點，確保 tree 完整清理
+    // 遞迴刪除子節點，確保整棵子樹完整清理，不留孤立節點
     private void deleteRecursive(Long nodeId) {
         wbsRepository.findByParentId(nodeId)
             .forEach(child -> deleteRecursive(child.getId()));

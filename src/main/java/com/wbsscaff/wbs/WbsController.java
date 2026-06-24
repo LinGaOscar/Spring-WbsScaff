@@ -23,6 +23,7 @@ public class WbsController {
     private final UserRepository userRepository;
     private final TemplateService templateService;
 
+    // 頁面載入時一次取得所有節點，前端自行建樹（flat list → tree）
     @GetMapping("/api/projects/{projectId}/nodes")
     public ApiResponse<List<WbsDto.Response>> getNodes(@PathVariable Long projectId,
             @AuthenticationPrincipal UserDetails userDetails) {
@@ -30,6 +31,7 @@ public class WbsController {
         return ApiResponse.ok(wbsService.getNodes(projectId));
     }
 
+    // 透過 REST API 新增節點（WebSocket 協作模式下通常走 CollabController）
     @PostMapping("/api/projects/{projectId}/nodes")
     public ApiResponse<WbsDto.Response> createNode(@PathVariable Long projectId,
             @Valid @RequestBody WbsDto.CreateRequest req,
@@ -38,6 +40,7 @@ public class WbsController {
         return ApiResponse.ok(WbsDto.Response.from(wbsService.createNode(projectId, req)));
     }
 
+    // 透過 REST API 更新節點（WebSocket 協作模式下通常走 CollabController）
     @PutMapping("/api/projects/{projectId}/nodes/{nodeId}")
     public ApiResponse<WbsDto.Response> updateNode(@PathVariable Long projectId,
             @PathVariable Long nodeId,
@@ -47,6 +50,7 @@ public class WbsController {
         return ApiResponse.ok(WbsDto.Response.from(wbsService.updateNode(projectId, nodeId, req)));
     }
 
+    // 透過 REST API 刪除節點（WebSocket 協作模式下通常走 CollabController）
     @DeleteMapping("/api/projects/{projectId}/nodes/{nodeId}")
     public ApiResponse<Void> deleteNode(@PathVariable Long projectId,
             @PathVariable Long nodeId,
@@ -56,6 +60,7 @@ public class WbsController {
         return ApiResponse.ok(null);
     }
 
+    // 前端拖曳排序後批次更新 sortOrder
     @PatchMapping("/api/projects/{projectId}/nodes/reorder")
     public ApiResponse<Void> reorder(@PathVariable Long projectId,
             @RequestBody List<WbsDto.ReorderItem> items,
@@ -65,6 +70,7 @@ public class WbsController {
         return ApiResponse.ok(null);
     }
 
+    // 從模板初始化 WBS，只允許在空專案使用（前端控制，不在 server 端強制）
     @PostMapping("/api/projects/{projectId}/nodes/init")
     public ApiResponse<Void> initFromTemplate(@PathVariable Long projectId,
             @RequestBody Map<String, Long> body,
@@ -74,6 +80,7 @@ public class WbsController {
         return ApiResponse.ok(null);
     }
 
+    // 從 JSON 匯入節點結構，可從其他系統或備份快速恢復 WBS
     @PostMapping("/api/projects/{projectId}/nodes/import-template")
     public ApiResponse<Void> importTemplate(@PathVariable Long projectId,
             @RequestBody String json,
@@ -83,6 +90,7 @@ public class WbsController {
         return ApiResponse.ok(null);
     }
 
+    // 需要 canManageSection 才能儲存為模板，防止一般 Member 隨意建立模板
     @PostMapping("/api/projects/{projectId}/save-as-template")
     public ApiResponse<TemplateDto.TemplateResponse> saveAsTemplate(
             @PathVariable Long projectId,
@@ -110,7 +118,7 @@ public class WbsController {
         return ApiResponse.ok(null);
     }
 
-    // 讀取：有 canReadProject 才能查看節點
+    // 讀取：有 canReadProject 才能查看節點（部長也可讀）
     private void checkReadAccess(Long projectId, UserDetails userDetails) {
         User user = userRepository.findByEmail(userDetails.getUsername()).orElseThrow();
         if (!projectService.canReadProject(projectId, user)) {
@@ -118,7 +126,7 @@ public class WbsController {
         }
     }
 
-    // 寫入：有 canWriteProject 才能修改WBS（部長被拒絕）
+    // 寫入：有 canWriteProject 才能修改 WBS（部長被拒絕、歸檔專案被拒絕）
     private void checkMember(Long projectId, UserDetails userDetails) {
         User user = userRepository.findByEmail(userDetails.getUsername()).orElseThrow();
         if (!projectService.canWriteProject(projectId, user)) {

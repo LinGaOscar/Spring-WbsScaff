@@ -112,8 +112,8 @@ public class CollabController {
     }
 
     /**
-     * 前端主動發送 JOIN（Finding 4）
      * 前端 onConnect 後 publish 到 /app/project/{id}/join，讓後端廣播 presence
+     * SockJS 無法攔截 onConnect 事件，前端主動 publish 以補足 presence 廣播
      */
     @MessageMapping("/project/{projectId}/join")
     public void handleJoin(@DestinationVariable Long projectId, Principal principal) {
@@ -130,8 +130,8 @@ public class CollabController {
     }
 
     /**
-     * 前端主動發送 LEAVE（Finding 4）
-     * beforeunload 時 publish 到 /app/project/{id}/leave 讓後端廣播離線
+     * 前端 beforeunload 時 publish 到 /app/project/{id}/leave 讓後端廣播離線
+     * beforeunload 無法等待 HTTP，改用 WebSocket publish 確保離線訊息送出
      */
     @MessageMapping("/project/{projectId}/leave")
     public void handleLeave(@DestinationVariable Long projectId, Principal principal) {
@@ -147,7 +147,7 @@ public class CollabController {
         broker.convertAndSend("/topic/project/" + projectId + "/presence", msg);
     }
 
-    /** 接收游標位置，轉發給同一專案的協作者 */
+    /** 接收游標位置，以 server 端用戶資訊覆蓋後轉發給同一專案的協作者，防止客戶端偽造身份 */
     @MessageMapping("/project/{projectId}/cursor")
     public void onCursor(@DestinationVariable Long projectId,
             @Payload CursorMessage cursor, Principal principal) {

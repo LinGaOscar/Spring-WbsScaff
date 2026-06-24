@@ -25,6 +25,7 @@ public class TemplateService {
     private final UserRepository userRepository;
     private final ObjectMapper objectMapper;
 
+    // 科成員看系統模板+本科自訂模板；部長或無所屬科只看系統模板（避免跨科模板外洩）
     public TemplateDto.ListResponse listAll(User user) {
         TemplateDto.ListResponse res = new TemplateDto.ListResponse();
         // 判斷 user 是否屬於某個科（parent != null 代表是科）
@@ -42,6 +43,7 @@ public class TemplateService {
         return res;
     }
 
+    // 複製系統模板為本科自訂版，節點 ID 全部更新為新 ID 以維持父子關係
     @Transactional
     public WbsTemplate cloneSystem(Long templateId, Long userId) {
         WbsTemplate source = templateRepository.findById(templateId)
@@ -73,6 +75,7 @@ public class TemplateService {
         return clone;
     }
 
+    // 系統模板不可刪除，防止影響所有科；只能刪本科自訂模板
     @Transactional
     public void deleteCustom(Long templateId, User user) {
         WbsTemplate tpl = templateRepository.findById(templateId)
@@ -86,6 +89,7 @@ public class TemplateService {
         templateRepository.delete(tpl);
     }
 
+    // 先清除本科所有預設標記，再設定新預設，確保每科只有一個預設模板
     @Transactional
     public void setDefault(Long templateId, Long userId) {
         // 先清除該使用者所屬科所有自訂模板的預設標記
@@ -96,6 +100,7 @@ public class TemplateService {
         templateRepository.save(tpl);
     }
 
+    // 同時回傳模板基本資訊與節點清單，前端一次請求取得完整模板內容
     @Transactional(readOnly = true)
     public TemplateDto.DetailResponse getWithNodes(Long id) {
         WbsTemplate template = templateRepository.findById(id)
@@ -104,6 +109,7 @@ public class TemplateService {
         return TemplateDto.DetailResponse.from(template, nodes);
     }
 
+    // 系統模板不可修改，防止影響所有使用此模板的科
     @Transactional
     public TemplateDto.Response updateTemplate(Long id, TemplateDto.UpdateRequest req, User caller) {
         WbsTemplate template = templateRepository.findById(id)
@@ -118,12 +124,14 @@ public class TemplateService {
         return TemplateDto.Response.from(templateRepository.save(template));
     }
 
+    // 讓科長從既有專案 WBS 快速產生可重用模板，不需重新手動建立
     @Transactional
     public TemplateDto.Response saveFromProject(Long projectId, String name, User caller) {
         WbsTemplate tpl = saveProjectAsTemplate(projectId, caller.getId(), name);
         return TemplateDto.Response.from(tpl);
     }
 
+    // 多輪處理解決父子節點建立順序問題：先建根，再建子，支援任意層深度
     @Transactional
     public void applyToProject(Long templateId, Long projectId) {
         Project project = projectRepository.findById(projectId)
@@ -156,6 +164,7 @@ public class TemplateService {
         }
     }
 
+    // 將現有專案的 WBS 節點（含層級）轉存為模板，模板歸屬建立者的科
     @Transactional
     public WbsTemplate saveProjectAsTemplate(Long projectId, Long userId, String name) {
         User owner = userRepository.findById(userId).orElseThrow();
@@ -181,6 +190,7 @@ public class TemplateService {
         return tpl;
     }
 
+    // 從 JSON 匯入 WBS 結構，可從其他專案或外部備份快速初始化節點
     @Transactional
     public void importJson(String json, Long projectId) throws Exception {
         Project project = projectRepository.findById(projectId)
@@ -191,6 +201,7 @@ public class TemplateService {
         importNodes(roots, null, project, 0);
     }
 
+    // 遞迴建立節點，baseOrder 確保同層節點的 sortOrder 正確排序
     private void importNodes(List<TemplateDto.ExportNode> nodes,
                              Long parentId,
                              com.wbsscaff.project.Project project,
@@ -209,12 +220,14 @@ public class TemplateService {
         }
     }
 
+    // 匯出為 JSON 讓科長可備份模板或分享給其他科手動匯入
     public String exportJson(Long templateId) throws Exception {
         List<WbsTemplateNode> nodes = nodeRepository.findByTemplate_IdOrderBySortOrder(templateId);
         List<TemplateDto.ExportNode> roots = buildExportTree(nodes, null);
         return objectMapper.writeValueAsString(roots);
     }
 
+    // 遞迴建立樹狀結構，以 parentId == null 作為根節點的起點
     private List<TemplateDto.ExportNode> buildExportTree(List<WbsTemplateNode> all, Long parentId) {
         List<TemplateDto.ExportNode> result = new ArrayList<>();
         all.stream().filter(n -> Objects.equals(n.getParentId(), parentId)).forEach(n -> {
