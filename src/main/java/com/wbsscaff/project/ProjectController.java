@@ -42,15 +42,18 @@ public class ProjectController {
     public String projectDetailPage(@PathVariable Long id, Model model,
             @AuthenticationPrincipal UserDetails userDetails) {
         User user = userRepository.findByEmail(userDetails.getUsername()).orElseThrow();
-        if (!projectService.canReadProject(id, user)) {
-            return "redirect:/projects";
+        try {
+            if (!projectService.canReadProject(id, user)) {
+                return "redirect:/projects";
+            }
+            Project project = projectService.getById(id);
+            boolean readOnly = !projectService.canWriteProject(id, user);
+            model.addAttribute("project", project);
+            model.addAttribute("readOnly", readOnly);
+            return "project/detail";
+        } catch (EntityNotFoundException e) {
+            return "error/404";
         }
-        Project project = projectService.getById(id);
-        // 無寫入權限（含部長看下屬科專案）則唯讀
-        boolean readOnly = !projectService.canWriteProject(id, user);
-        model.addAttribute("project", project);
-        model.addAttribute("readOnly", readOnly);
-        return "project/detail";
     }
 
     // 依角色回傳對應可見專案清單，支援 archived 參數切換現行/歷史
