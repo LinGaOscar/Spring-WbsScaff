@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## 常用指令
 
 ```bash
-# 啟動資料庫
+# 啟動資料庫（SQL Server 2022）
 docker compose up -d
 
 # 重置資料庫（清除所有資料重新初始化）
@@ -22,8 +22,10 @@ mvn spring-boot:run
 # 打包後直接執行 JAR（正式部署流程）
 java -jar target/spring-wbsscaff-*.jar
 
-# 執行手動 migration（不重置資料庫）
-docker exec spring-wbsscaff-db-1 psql -U wbsscaff -d wbsscaff -f /path/to/migration.sql
+# 執行手動 SQL（不重置資料庫）
+docker exec -it spring-wbsscaff-db-1 \
+  /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "$MSSQL_SA_PASSWORD" \
+  -d wbsscaff -i /path/to/migration.sql -C
 ```
 
 > **重要**：Thymeleaf 模板與靜態資源（JS/CSS）都打包進 JAR，每次修改這些檔案後必須重新執行 `mvn clean install -DskipTests` 才會生效。
@@ -70,8 +72,9 @@ docker exec spring-wbsscaff-db-1 psql -U wbsscaff -d wbsscaff -f /path/to/migrat
 ### 資料庫 Schema 管理
 
 - **不使用** Flyway / Liquibase
-- `db/init/`：Docker 首次啟動自動執行（`01-schema.sql` 建表、`02-seed.sql` 種子資料）
-- `db/migrate/`：需手動執行的增量 migration（命名格式：`NN-description.sql`）
+- `db/mssql/`：Docker 首次啟動自動執行（`entrypoint.sh` 負責啟動 SQL Server、建庫、執行 `01-schema.sql` 與 `02-seed.sql`）
+- `db/postgres/`：PostgreSQL 版 SQL 封存，不再使用
+- `db/migrate/`：需手動執行的增量 migration（命名格式：`NN-description.sql`，用 sqlcmd 套用）
 - `ddl-auto: none`，不依賴 Hibernate 自動建表
 
 ### 測試帳號（密碼皆為 `test1234`）
@@ -92,6 +95,6 @@ docker exec spring-wbsscaff-db-1 psql -U wbsscaff -d wbsscaff -f /path/to/migrat
 ## 常見陷阱
 
 - **靜態資源改了沒生效**：需重新 `mvn clean install` 打包進 JAR 再重啟
-- **新增 migration 後資料不對**：`db/migrate/` 的 SQL 不會自動執行，需手動 `psql` 套用
+- **新增 migration 後資料不對**：`db/migrate/` 的 SQL 不會自動執行，需手動用 `sqlcmd` 套用
 - **WBS `_open` 狀態**：`buildTree()` 每次重建都會將 `_open` 重設為 `true`；toggling close 後，若 `flatNodes` 有任何更新就會重展開（已知行為）
 - **WebSocket 節點 ID 傳遞**：`CollabController` 的 update / delete 使用 STOMP `@Header("nodeId")`，不是 payload body

@@ -50,8 +50,8 @@
             <artifactId>spring-session-jdbc</artifactId>
         </dependency>
         <dependency>
-            <groupId>org.postgresql</groupId>
-            <artifactId>postgresql</artifactId>
+            <groupId>com.microsoft.sqlserver</groupId>
+            <artifactId>mssql-jdbc</artifactId>
             <scope>runtime</scope>
         </dependency>
         <!-- 自動讀取 .env 檔案，讓本機開發不需手動 export 環境變數 -->
