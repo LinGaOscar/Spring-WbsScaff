@@ -20,8 +20,10 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 .form-group input, .form-group select { width: 100%; padding: 0.6rem 0.8rem; border: 1px solid #b2bec3; border-radius: 4px; font-size: 0.95rem; }
 .form-group input:focus, .form-group select:focus { outline: none; border-color: #0984e3; }
 .btn { padding: 0.6rem 1.2rem; border: 1px solid #b2bec3; border-radius: 4px; cursor: pointer; font-size: 0.95rem; background: #fff; }
-.btn-primary { background: #0984e3; color: #fff; border-color: #0984e3; width: 100%; margin-top: 0.5rem; }
+.btn-primary { background: #0984e3; color: #fff; border-color: #0984e3; }
 .btn-primary:hover { background: #0773c5; }
+.btn-block { width: 100%; margin-top: 0.5rem; }
+.sidebar ul li a.active { background: #e8f4fd; color: #0984e3; font-weight: 600; border-left: 3px solid #0984e3; padding-left: calc(1.5rem - 3px); }
 .btn-sm { padding: 0.3rem 0.6rem; font-size: 0.8rem; margin-right: 0.25rem; }
 .btn-danger { border-color: #e17055; color: #e17055; }
 .btn-danger:hover { background: #e17055; color: #fff; }

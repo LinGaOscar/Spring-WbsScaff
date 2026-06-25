@@ -3,6 +3,20 @@
 <body>
 <footer th:fragment="footer" class="footer">
   <p>WBS 管理系統 &copy; 2026</p>
+  <script>
+    (function() {
+      const path = window.location.pathname;
+      document.querySelectorAll('.sidebar a').forEach(function(a) {
+        const href = a.getAttribute('href');
+        if (!href) return;
+        const match =
+          href === '/projects/history' ? path === '/projects/history' :
+          href === '/projects'         ? path === '/projects' || (path.startsWith('/projects/') && path !== '/projects/history') :
+          path === href || path.startsWith(href + '/');
+        if (match) a.classList.add('active');
+      });
+    })();
+  </script>
 </footer>
 </body>
 </html>
