@@ -22,6 +22,7 @@
     <main class="main-content" id="app">
       <div class="page-header">
         <h2>主模板管理</h2>
+        <button class="btn btn-primary btn-sm" @click="createTemplate">＋ 新增模板</button>
       </div>
       <div v-if="error" class="alert alert-error">{{ error }}</div>
 
@@ -59,6 +60,7 @@
             <span class="tpl-toggle" style="cursor:pointer" @click="togglePreview(t.id)">
               {{ expanded.has(t.id) ? '▲ 收合' : '▼ 預覽節點' }}
             </span>
+            <button class="btn btn-sm" @click="editTemplate(t)">編輯節點</button>
             <button class="btn btn-sm" @click="renameTemplate(t)">改名</button>
             <button class="btn btn-sm btn-danger" @click="deleteTemplate(t)">刪除</button>
           </div>
@@ -75,7 +77,8 @@
       </div>
 
       <p style="margin-top:1.5rem;font-size:0.82rem;color:#b2bec3">
-        系統模板由管理員透過資料庫維護。自訂快速子項請至「子模板管理」。
+        系統模板由管理員透過資料庫維護。自訂快速子項請至「子模板管理」。<br>
+        自訂模板可點「編輯節點」直接新增、修改、拖曳排序節點結構。
       </p>
     </main>
   </div>
@@ -139,9 +142,24 @@
           else alert('刪除失敗：' + (d.message || ''));
         }
 
+        async function createTemplate() {
+          const name = prompt('新模板名稱');
+          if (!name?.trim()) return;
+          const d = await api('/api/templates', {
+            method: 'POST',
+            body: JSON.stringify({ name: name.trim(), description: '' })
+          });
+          if (d.success) window.location.href = `/templates/${d.data.id}/edit`;
+          else alert('建立失敗：' + (d.message || ''));
+        }
+
+        function editTemplate(t) {
+          window.location.href = `/templates/${t.id}/edit`;
+        }
+
         onMounted(load);
         return { systemTpls, customTpls, expanded, previewData, error,
-                 togglePreview, renameTemplate, deleteTemplate };
+                 togglePreview, renameTemplate, deleteTemplate, createTemplate, editTemplate };
       }
     }).mount('#app');
   </script>

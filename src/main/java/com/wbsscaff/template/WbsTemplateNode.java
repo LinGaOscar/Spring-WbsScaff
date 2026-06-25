@@ -25,4 +25,7 @@ public class WbsTemplateNode {
 
     @Column(nullable = false)
     private Integer sortOrder = 0;
+
+    @Column(columnDefinition = "NVARCHAR(MAX)")
+    private String notes;
 }

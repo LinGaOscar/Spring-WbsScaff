@@ -11,13 +11,41 @@ public class TemplateDto {
         private Long parentId;
         private String title;
         private Integer sortOrder;
+        private String notes;
 
         public static NodeResponse from(WbsTemplateNode n) {
             NodeResponse r = new NodeResponse();
             r.id = n.getId(); r.parentId = n.getParentId();
             r.title = n.getTitle(); r.sortOrder = n.getSortOrder();
+            r.notes = n.getNotes();
             return r;
         }
+    }
+
+    @Data
+    public static class CreateRequest {
+        private String name;
+        private String description;
+    }
+
+    @Data
+    public static class NodeCreateRequest {
+        private String title;
+        private Long parentId;
+        private Integer sortOrder;
+        private String notes;
+    }
+
+    @Data
+    public static class NodeUpdateRequest {
+        private String title;
+        private String notes;
+    }
+
+    @Data
+    public static class ReorderItem {
+        private Long id;
+        private Integer sortOrder;
     }
 
     @Data

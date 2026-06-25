@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <title th:text="'編輯模板：' + ${templateName}">編輯模板</title>
+  <link rel="stylesheet" th:href="@{/css/app.css}">
+  <style>
+    .tpl-editor { max-width: 820px; }
+    .node-row {
+      display: flex; align-items: center; gap: 0.5rem;
+      padding: 0.4rem 0.5rem; border-radius: 6px;
+      background: #fff; margin-bottom: 0.3rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.07);
+      cursor: grab;
+    }
+    .node-row.drag-over { border: 2px dashed #0984e3; background: #e8f4fd; }
+    .node-row.dragging  { opacity: 0.4; }
+    .node-indent-1 { margin-left: 0; }
+    .node-indent-2 { margin-left: 1.75rem; }
+    .node-indent-3 { margin-left: 3.5rem; }
+    .drag-handle { color: #b2bec3; cursor: grab; user-select: none; font-size: 1rem; }
+    .node-title-input {
+      flex: 1; border: none; background: transparent;
+      font-size: 0.9rem; color: #2d3436; outline: none;
+    }
+    .node-title-input:focus { background: #f8f9fa; border-radius: 4px; padding: 0 4px; }
+    .node-notes-input {
+      width: 100%; border: 1px solid #dfe6e9; border-radius: 4px;
+      font-size: 0.82rem; color: #636e72; padding: 0.3rem 0.5rem;
+      margin-top: 0.3rem; resize: vertical; min-height: 48px;
+    }
+    .node-badge {
+      font-size: 0.7rem; background: #dfe6e9; color: #636e72;
+      border-radius: 3px; padding: 1px 5px; white-space: nowrap;
+    }
+    .btn-icon { background: none; border: none; cursor: pointer; font-size: 1rem; padding: 2px 4px; }
+    .btn-icon:hover { color: #d63031; }
+    .section-label {
+      font-size: 0.75rem; color: #b2bec3; text-transform: uppercase;
+      letter-spacing: 0.06em; margin: 1.25rem 0 0.5rem;
+    }
+  </style>
+</head>
+<body>
+  <div th:replace="~{fragments/header :: header}"></div>
+  <div class="layout">
+    <div th:replace="~{fragments/sidebar :: sidebar}"></div>
+    <main class="main-content" id="app">
+      <div class="page-header">
+        <div>
+          <a href="/templates" style="font-size:0.82rem;color:#636e72">← 返回模板管理</a>
+          <h2 style="margin-top:0.25rem">{{ templateName }}</h2>
+        </div>
+        <button class="btn btn-primary btn-sm" @click="save" :disabled="saving">
+          {{ saving ? '儲存中...' : '儲存' }}
+        </button>
+      </div>
+
+      <div v-if="error" class="alert alert-error">{{ error }}</div>
+
+      <div class="tpl-editor">
+        <!-- L1 節點區塊 -->
+        <div v-for="l1 in l1Nodes" :key="l1.id">
+          <div class="node-row node-indent-1"
+               draggable="true"
+               :class="{ 'drag-over': dragOverId === l1.id, 'dragging': draggingId === l1.id }"
+               @dragstart="onDragStart($event, l1, null)"
+               @dragover.prevent="onDragOver($event, l1.id)"
+               @dragleave="dragOverId = null"
+               @drop="onDrop($event, l1, null)">
+            <span class="drag-handle">⠿</span>
+            <span class="node-badge">L1</span>
+            <input class="node-title-input" v-model="l1.title" placeholder="節點名稱" />
+            <button class="btn-icon" title="新增 L2 子節點" @click="addNode(l1.id, 2)">＋</button>
+            <button class="btn-icon" title="刪除" @click="removeNode(l1)">✕</button>
+          </div>
+
+          <!-- L2 節點 -->
+          <div v-for="l2 in childrenOf(l1.id)" :key="l2.id">
+            <div class="node-row node-indent-2"
+                 draggable="true"
+                 :class="{ 'drag-over': dragOverId === l2.id, 'dragging': draggingId === l2.id }"
+                 @dragstart="onDragStart($event, l2, l1.id)"
+                 @dragover.prevent="onDragOver($event, l2.id)"
+                 @dragleave="dragOverId = null"
+                 @drop="onDrop($event, l2, l1.id)">
+              <span class="drag-handle">⠿</span>
+              <span class="node-badge">L2</span>
+              <input class="node-title-input" v-model="l2.title" placeholder="節點名稱" />
+              <button class="btn-icon" title="新增 L3 子節點" @click="addNode(l2.id, 3)">＋</button>
+              <button class="btn-icon" title="刪除" @click="removeNode(l2)">✕</button>
+            </div>
+
+            <!-- L3 節點 -->
+            <div v-for="l3 in childrenOf(l2.id)" :key="l3.id">
+              <div class="node-row node-indent-3"
+                   draggable="true"
+                   :class="{ 'drag-over': dragOverId === l3.id, 'dragging': draggingId === l3.id }"
+                   @dragstart="onDragStart($event, l3, l2.id)"
+                   @dragover.prevent="onDragOver($event, l3.id)"
+                   @dragleave="dragOverId = null"
+                   @drop="onDrop($event, l3, l2.id)">
+                <span class="drag-handle">⠿</span>
+                <span class="node-badge">L3</span>
+                <div style="flex:1">
+                  <input class="node-title-input" v-model="l3.title" placeholder="節點名稱" style="width:100%" />
+                  <textarea class="node-notes-input" v-model="l3.notes" placeholder="備註（選填）"></textarea>
+                </div>
+                <button class="btn-icon" title="刪除" @click="removeNode(l3)">✕</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 新增 L1 根節點 -->
+        <button class="btn btn-sm" style="margin-top:0.75rem" @click="addNode(null, 1)">＋ 新增 L1 根節點</button>
+      </div>
+    </main>
+  </div>
+  <div th:replace="~{fragments/footer :: footer}"></div>
+
+  <script th:src="@{/js/vue.global.prod.min.js}"></script>
+  <script th:inline="javascript">
+    const CSRF_HEADER  = /*[[${_csrf.headerName}]]*/ 'X-CSRF-TOKEN';
+    const CSRF_TOKEN   = /*[[${_csrf.token}]]*/ '';
+    const TEMPLATE_ID  = /*[[${templateId}]]*/ 0;
+  </script>
+  <script th:src="@{/js/template-editor.js}"></script>
+</body>
+</html>

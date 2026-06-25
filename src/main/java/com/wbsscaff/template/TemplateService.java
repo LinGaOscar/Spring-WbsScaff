@@ -227,6 +227,77 @@ public class TemplateService {
         return objectMapper.writeValueAsString(roots);
     }
 
+    @Transactional
+    public WbsTemplate createEmpty(String name, String description, Long userId) {
+        User user = userRepository.findById(userId).orElseThrow();
+        if (!user.canManageSection()) throw new SecurityException("無建立模板的權限");
+        WbsTemplate tpl = new WbsTemplate();
+        tpl.setName(name);
+        tpl.setDescription(description);
+        tpl.setOwner(user);
+        tpl.setSection(user.getDepartment());
+        return templateRepository.save(tpl);
+    }
+
+    @Transactional
+    public WbsTemplateNode addNode(Long templateId, TemplateDto.NodeCreateRequest req, Long userId) {
+        WbsTemplate tpl = requireEditAccess(templateId, userId);
+        WbsTemplateNode node = new WbsTemplateNode();
+        node.setTemplate(tpl);
+        node.setTitle(req.getTitle());
+        node.setParentId(req.getParentId());
+        node.setSortOrder(req.getSortOrder() != null ? req.getSortOrder() : 0);
+        node.setNotes(req.getNotes());
+        return nodeRepository.save(node);
+    }
+
+    @Transactional
+    public WbsTemplateNode updateNode(Long templateId, Long nodeId, TemplateDto.NodeUpdateRequest req, Long userId) {
+        requireEditAccess(templateId, userId);
+        WbsTemplateNode node = nodeRepository.findById(nodeId)
+            .orElseThrow(() -> new EntityNotFoundException("節點不存在"));
+        if (!node.getTemplate().getId().equals(templateId))
+            throw new SecurityException("節點不屬於此模板");
+        if (req.getTitle() != null) node.setTitle(req.getTitle());
+        node.setNotes(req.getNotes());
+        return nodeRepository.save(node);
+    }
+
+    @Transactional
+    public void deleteNode(Long templateId, Long nodeId, Long userId) {
+        requireEditAccess(templateId, userId);
+        WbsTemplateNode node = nodeRepository.findById(nodeId)
+            .orElseThrow(() -> new EntityNotFoundException("節點不存在"));
+        if (!node.getTemplate().getId().equals(templateId))
+            throw new SecurityException("節點不屬於此模板");
+        deleteNodeRecursive(nodeId);
+    }
+
+    @Transactional
+    public void reorderNodes(Long templateId, List<TemplateDto.ReorderItem> items, Long userId) {
+        requireEditAccess(templateId, userId);
+        items.forEach(item -> nodeRepository.findById(item.getId()).ifPresent(n -> {
+            n.setSortOrder(item.getSortOrder());
+            nodeRepository.save(n);
+        }));
+    }
+
+    private void deleteNodeRecursive(Long nodeId) {
+        nodeRepository.findByParentId(nodeId).forEach(child -> deleteNodeRecursive(child.getId()));
+        nodeRepository.deleteById(nodeId);
+    }
+
+    private WbsTemplate requireEditAccess(Long templateId, Long userId) {
+        WbsTemplate tpl = templateRepository.findById(templateId)
+            .orElseThrow(() -> new EntityNotFoundException("模板不存在"));
+        if (tpl.isSystem()) throw new SecurityException("系統模板不可編輯");
+        User user = userRepository.findById(userId).orElseThrow();
+        if (!user.canManageSection()) throw new SecurityException("無管理模板的權限");
+        if (tpl.getSection() == null || !tpl.getSection().getId().equals(user.getDepartment().getId()))
+            throw new SecurityException("只能編輯本科模板");
+        return tpl;
+    }
+
     // 遞迴建立樹狀結構，以 parentId == null 作為根節點的起點
     private List<TemplateDto.ExportNode> buildExportTree(List<WbsTemplateNode> all, Long parentId) {
         List<TemplateDto.ExportNode> result = new ArrayList<>();
