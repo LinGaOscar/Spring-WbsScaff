@@ -3,6 +3,7 @@ package com.wbsscaff.common;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.annotation.*;
 
 // 統一將 domain exception 轉換成 HTTP 狀態碼，前端只需判斷 success 旗標，不需要處理 500
@@ -28,5 +29,12 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse<Void>> handleForbidden(SecurityException e) {
         return ResponseEntity.status(HttpStatus.FORBIDDEN)
             .body(ApiResponse.error(e.getMessage()));
+    }
+
+    // Spring Security 框架層拋出的 403（例如 @PreAuthorize 失敗）→ 403
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<ApiResponse<Void>> handleAccessDenied(AccessDeniedException e) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+            .body(ApiResponse.error("存取被拒絕"));
     }
 }

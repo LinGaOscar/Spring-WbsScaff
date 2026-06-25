@@ -92,9 +92,13 @@ public class TemplateService {
     // 先清除本科所有預設標記，再設定新預設，確保每科只有一個預設模板
     @Transactional
     public void setDefault(Long templateId, Long userId) {
-        // 先清除該使用者所屬科所有自訂模板的預設標記
-        templateRepository.findBySectionId(userId)
-            .forEach(t -> { t.setDefault(false); templateRepository.save(t); });
+        User user = userRepository.findById(userId)
+            .orElseThrow(() -> new EntityNotFoundException("使用者不存在"));
+        if (!user.canManageSection()) throw new SecurityException("無設定預設模板的權限");
+        // 批次清除本科所有模板的預設標記，避免 N+1 查詢
+        List<WbsTemplate> sectionTemplates = templateRepository.findBySectionId(user.getDepartment().getId());
+        sectionTemplates.forEach(t -> t.setDefault(false));
+        templateRepository.saveAll(sectionTemplates);
         WbsTemplate tpl = templateRepository.findById(templateId).orElseThrow();
         tpl.setDefault(true);
         templateRepository.save(tpl);
