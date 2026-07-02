@@ -549,6 +549,53 @@
           window.location.href = `/api/projects/${PROJECT_ID}/nodes/export.xlsx`;
         }
 
+        function exportJson() {
+          // 將 flatNodes 重建為樹狀結構後序列化為 JSON 檔案下載
+          function buildTree(parentId) {
+            return flatNodes.value
+              .filter(n => (n.parentId ?? null) === parentId)
+              .sort((a, b) => a.sortOrder - b.sortOrder)
+              .map(n => ({
+                title: n.title,
+                status: n.status,
+                owner: n.owner || null,
+                startDate: n.startDate || null,
+                endDate: n.endDate || null,
+                notes: n.notes || null,
+                children: buildTree(n.id)
+              }));
+          }
+          const data = JSON.stringify(buildTree(null), null, 2);
+          const blob = new Blob([data], { type: 'application/json' });
+          const a = document.createElement('a');
+          a.href = URL.createObjectURL(blob);
+          a.download = `wbs-${PROJECT_ID}.json`;
+          a.click();
+        }
+
+        function importJson() {
+          // 觸發隱藏的 file input，由使用者選取 JSON 檔
+          document.getElementById('json-import-input').click();
+        }
+
+        async function handleJsonImport(event) {
+          const file = event.target.files[0];
+          if (!file) return;
+          event.target.value = ''; // 重設，讓同一份檔案可再次選取
+          const text = await file.text();
+          let data;
+          try { data = JSON.parse(text); }
+          catch { alert('JSON 格式錯誤，請確認檔案內容'); return; }
+          if (!confirm('匯入將覆蓋所有現有節點，確定繼續？')) return;
+          const r = await fetch(`/api/projects/${PROJECT_ID}/nodes/replace`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', [CSRF_HEADER]: CSRF_TOKEN },
+            body: JSON.stringify(data)
+          });
+          if (!r.ok) alert('匯入失敗，請確認 JSON 格式正確');
+          // flatNodes 由 NODE_RESET WebSocket 廣播自動更新，不需手動 reload
+        }
+
         async function applyTemplate(templateId) {
           try {
             const r = await fetch(`/api/projects/${PROJECT_ID}/nodes/init`, {
@@ -597,7 +644,7 @@
           roots, projectName, quickItems, panelCollapsed, locked, treeHighlight,
           showTemplateModal, availableTemplates, isReadOnly,
           addRoot, addChild, deleteNode, updateNode,
-          exportCsv, exportXlsx, hasNodes, stats,
+          exportCsv, exportXlsx, exportJson, importJson, handleJsonImport, hasNodes, stats,
           applyTemplate, saveAsTemplate,
           onlineUsers, cursors, sendCursor,
           onDragStart, onDropToRoot, handleDropItem, handleNodeDrop,
