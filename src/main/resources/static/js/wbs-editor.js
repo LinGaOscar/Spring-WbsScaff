@@ -539,11 +539,6 @@
           pendingChanges.value = {};
         }
 
-        function exportCsv() {
-          // 改由後端產生，含層級編號與 BOM
-          window.location.href = `/api/projects/${PROJECT_ID}/nodes/export.csv`;
-        }
-
         function exportXlsx() {
           // 改由後端 Apache POI 產生，含層級編號與狀態底色
           window.location.href = `/api/projects/${PROJECT_ID}/nodes/export.xlsx`;
@@ -644,7 +639,7 @@
           roots, projectName, quickItems, panelCollapsed, locked, treeHighlight,
           showTemplateModal, availableTemplates, isReadOnly,
           addRoot, addChild, deleteNode, updateNode,
-          exportCsv, exportXlsx, exportJson, importJson, handleJsonImport, hasNodes, stats,
+          exportXlsx, exportJson, importJson, handleJsonImport, hasNodes, stats,
           applyTemplate, saveAsTemplate,
           onlineUsers, cursors, sendCursor,
           onDragStart, onDropToRoot, handleDropItem, handleNodeDrop,

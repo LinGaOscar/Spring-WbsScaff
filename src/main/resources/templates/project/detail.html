@@ -80,7 +80,6 @@
             <div class="export-dropdown">
               <button class="btn btn-sm">匯出 ▾</button>
               <div class="dropdown-menu">
-                <button class="dropdown-item" @click="exportCsv()">CSV</button>
                 <button class="dropdown-item" @click="exportXlsx()">XLSX</button>
                 <button class="dropdown-item" @click="exportJson()">JSON</button>
                 <button class="dropdown-item" v-if="!locked && !isReadOnly" @click="importJson()">匯入 JSON</button>

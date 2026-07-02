@@ -80,14 +80,6 @@ class WbsControllerExportTest {
     }
 
     @Test
-    @WithMockUser(username = "export-test@test.com", roles = "SECTION_CHIEF")
-    void exportCsv_returns200WithCsvContentType() throws Exception {
-        mockMvc.perform(get("/api/projects/{id}/nodes/export.csv", projectId))
-            .andExpect(status().isOk())
-            .andExpect(header().string("Content-Type", containsString("text/csv")));
-    }
-
-    @Test
     void exportXlsx_unauthenticated_redirects() throws Exception {
         mockMvc.perform(get("/api/projects/{id}/nodes/export.xlsx", projectId))
             .andExpect(status().is3xxRedirection());

@@ -14,7 +14,6 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
-import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 
@@ -135,19 +134,6 @@ public class WbsController {
             .header("Content-Disposition", "attachment; filename=\"wbs-" + projectId + ".xlsx\"")
             .header("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
             .body(bytes);
-    }
-
-    // 匯出 CSV：含 UTF-8 BOM，方便 Excel 正確顯示中文欄位
-    @GetMapping("/api/projects/{projectId}/nodes/export.csv")
-    public ResponseEntity<byte[]> exportCsv(@PathVariable Long projectId,
-            @AuthenticationPrincipal UserDetails userDetails) throws Exception {
-        checkReadAccess(projectId, userDetails);
-        List<WbsDto.Response> nodes = wbsService.getNodes(projectId);
-        String csv = exportService.buildCsv(nodes);
-        return ResponseEntity.ok()
-            .header("Content-Disposition", "attachment; filename=\"wbs-" + projectId + ".csv\"")
-            .header("Content-Type", "text/csv; charset=utf-8")
-            .body(csv.getBytes(StandardCharsets.UTF_8));
     }
 
     // JSON 覆蓋匯入：清除現有節點，以匯入樹狀結構取代，並廣播 NODE_RESET 給所有協作者

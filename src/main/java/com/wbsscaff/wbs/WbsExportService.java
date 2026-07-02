@@ -63,32 +63,6 @@ public class WbsExportService {
         }
     }
 
-    public String buildCsv(List<WbsDto.Response> nodes) {
-        Map<Long, String>      nums    = buildNumbering(nodes);
-        List<WbsDto.Response>  ordered = buildOrdered(nodes);
-
-        // UTF-8 BOM 確保 Excel 正確識別中文
-        StringBuilder sb = new StringBuilder("﻿");
-        sb.append(Arrays.stream(HEADERS).map(h -> "\"" + h + "\"")
-            .collect(Collectors.joining(","))).append("\n");
-
-        for (WbsDto.Response node : ordered) {
-            WbsNode.Status status = node.getStatus() != null ? node.getStatus() : WbsNode.Status.NOT_STARTED;
-            String[] row = {
-                nums.getOrDefault(node.getId(), ""),
-                String.valueOf(node.getParentId() == null ? 1 : 2),
-                node.getTitle() != null ? node.getTitle() : "",
-                node.getOwner() != null ? node.getOwner() : "",
-                node.getStartDate() != null ? node.getStartDate().toString() : "",
-                node.getEndDate()   != null ? node.getEndDate().toString()   : "",
-                statusLabel(status)
-            };
-            sb.append(Arrays.stream(row).map(v -> "\"" + v + "\"")
-                .collect(Collectors.joining(","))).append("\n");
-        }
-        return sb.toString();
-    }
-
     // 建立根 → 子的排列順序，確保匯出時層次清晰
     private List<WbsDto.Response> buildOrdered(List<WbsDto.Response> nodes) {
         Map<Long, List<WbsDto.Response>> childMap = nodes.stream()
