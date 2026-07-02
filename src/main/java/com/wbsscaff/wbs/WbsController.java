@@ -1,5 +1,6 @@
 package com.wbsscaff.wbs;
 
+import com.wbsscaff.collab.NodeChangeMessage;
 import com.wbsscaff.common.ApiResponse;
 import com.wbsscaff.project.ProjectService;
 import com.wbsscaff.template.TemplateDto;
@@ -9,6 +10,7 @@ import com.wbsscaff.user.UserRepository;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
@@ -25,6 +27,7 @@ public class WbsController {
     private final UserRepository userRepository;
     private final TemplateService templateService;
     private final WbsExportService exportService;
+    private final SimpMessagingTemplate broker;
 
     // 頁面載入時一次取得所有節點，前端自行建樹（flat list → tree）
     @GetMapping("/api/projects/{projectId}/nodes")
@@ -145,6 +148,24 @@ public class WbsController {
             .header("Content-Disposition", "attachment; filename=\"wbs-" + projectId + ".csv\"")
             .header("Content-Type", "text/csv; charset=utf-8")
             .body(csv.getBytes(StandardCharsets.UTF_8));
+    }
+
+    // JSON 覆蓋匯入：清除現有節點，以匯入樹狀結構取代，並廣播 NODE_RESET 給所有協作者
+    @PostMapping("/api/projects/{projectId}/nodes/replace")
+    public ApiResponse<List<WbsDto.Response>> replaceAll(
+            @PathVariable Long projectId,
+            @RequestBody List<WbsDto.ImportNode> items,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        checkMember(projectId, userDetails);
+        List<WbsNode> nodes = wbsService.replaceAll(projectId, items);
+        List<WbsDto.Response> responses = nodes.stream().map(WbsDto.Response::from).toList();
+
+        NodeChangeMessage msg = new NodeChangeMessage();
+        msg.setType(NodeChangeMessage.Type.NODE_RESET);
+        msg.setPayload(responses);
+        broker.convertAndSend("/topic/project/" + projectId + "/nodes", msg);
+
+        return ApiResponse.ok(responses);
     }
 
     // 讀取：有 canReadProject 才能查看節點（部長也可讀）

@@ -433,6 +433,9 @@
                   const u = m.payload.find(u => u.nodeId === n.id);
                   return u ? { ...n, parentId: u.parentId, sortOrder: u.sortOrder } : n;
                 });
+              } else if (m.type === 'NODE_RESET') {
+                // JSON 覆蓋匯入後，以後端廣播的完整節點清單取代前端狀態（Task 8）
+                flatNodes.value = m.payload;
               }
             });
 
