@@ -162,6 +162,7 @@
           // 快速子項拖曳（text/plain）：走舊邏輯
           if (!event.dataTransfer.types.includes('application/json')) {
             isDragOver.value = (props.depth || 1) < 3;
+            if (isDragOver.value) event.preventDefault();
             return;
           }
           event.preventDefault();
