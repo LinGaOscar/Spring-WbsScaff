@@ -154,7 +154,7 @@ public class WbsController {
     @PostMapping("/api/projects/{projectId}/nodes/replace")
     public ApiResponse<List<WbsDto.Response>> replaceAll(
             @PathVariable Long projectId,
-            @RequestBody List<WbsDto.ImportNode> items,
+            @RequestBody @Valid List<WbsDto.ImportNode> items,
             @AuthenticationPrincipal UserDetails userDetails) {
         checkMember(projectId, userDetails);
         List<WbsNode> nodes = wbsService.replaceAll(projectId, items);

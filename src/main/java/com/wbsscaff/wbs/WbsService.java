@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -95,13 +96,19 @@ public class WbsService {
     }
 
     // 支援拖曳跨父移動：同時更新 parentId 與 sortOrder，並驗證所有節點歸屬以防 IDOR
+    // parentId 亦需驗證屬於同專案，否則可跨專案建立孤兒參照
     @Transactional
     public void reorderWithParent(Long projectId, List<WbsDto.ReorderWithParentItem> items) {
+        Set<Long> projectNodeIds = wbsRepository.findByProjectIdOrderBySortOrder(projectId)
+            .stream().map(WbsNode::getId).collect(java.util.stream.Collectors.toSet());
         for (WbsDto.ReorderWithParentItem item : items) {
-            WbsNode node = wbsRepository.findById(item.getNodeId())
-                .orElseThrow(() -> new EntityNotFoundException("節點不存在"));
-            if (!node.getProject().getId().equals(projectId))
-                throw new SecurityException("節點不屬於此專案");
+            if (!projectNodeIds.contains(item.getNodeId()))
+                throw new SecurityException("節點不屬於此專案: " + item.getNodeId());
+            if (item.getParentId() != null && !projectNodeIds.contains(item.getParentId()))
+                throw new SecurityException("父節點不屬於此專案: " + item.getParentId());
+        }
+        for (WbsDto.ReorderWithParentItem item : items) {
+            WbsNode node = wbsRepository.findById(item.getNodeId()).orElseThrow();
             node.setParentId(item.getParentId());
             node.setSortOrder(item.getSortOrder());
             wbsRepository.save(node);
@@ -115,13 +122,15 @@ public class WbsService {
             .orElseThrow(() -> new EntityNotFoundException("專案不存在"));
         wbsRepository.deleteByProjectId(projectId);
         List<WbsNode> created = new ArrayList<>();
-        importNodes(project, nodes, null, 0, created);
+        importNodes(project, nodes, null, 0, 0, created);
         return created;
     }
 
+    // depth 從 0 開始，限制最多兩層（L1=0, L2=1），超過拋例外
     private void importNodes(Project project, List<WbsDto.ImportNode> nodes,
-                             Long parentId, int baseOrder, List<WbsNode> created) {
+                             Long parentId, int baseOrder, int depth, List<WbsNode> created) {
         if (nodes == null) return;
+        if (depth >= 2) throw new IllegalArgumentException("WBS 僅支援兩層結構，匯入資料超過深度限制");
         for (int i = 0; i < nodes.size(); i++) {
             WbsDto.ImportNode src = nodes.get(i);
             WbsNode node = new WbsNode();
@@ -136,7 +145,7 @@ public class WbsService {
             node.setSortOrder(baseOrder + i);
             WbsNode saved = wbsRepository.save(node);
             created.add(saved);
-            importNodes(project, src.getChildren(), saved.getId(), 0, created);
+            importNodes(project, src.getChildren(), saved.getId(), 0, depth + 1, created);
         }
     }
 }
