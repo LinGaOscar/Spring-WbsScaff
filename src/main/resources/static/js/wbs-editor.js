@@ -415,31 +415,13 @@
         }
 
         function exportCsv() {
-          const header = ['編號','標題','負責人','開始日','結束日','狀態'];
-          const rows   = [header];
-          flatNodes.value.forEach(n => rows.push([
-            n.id, n.title, n.owner||'', n.startDate||'', n.endDate||'',
-            STATUS_LABEL[n.status]
-          ]));
-          const csv  = rows.map(r => r.map(v => `"${v}"`).join(',')).join('\n');
-          const blob = new Blob(['﻿'+csv], { type: 'text/csv;charset=utf-8' });
-          const a    = document.createElement('a');
-          a.href     = URL.createObjectURL(blob);
-          a.download = `wbs-${PROJECT_ID}.csv`;
-          a.click();
+          // 改由後端產生，含層級編號與 BOM
+          window.location.href = `/api/projects/${PROJECT_ID}/nodes/export.csv`;
         }
 
         function exportXlsx() {
-          const header = ['編號','標題','負責人','開始日','結束日','狀態'];
-          const rows   = [header];
-          flatNodes.value.forEach(n => rows.push([
-            n.id, n.title, n.owner||'', n.startDate||'', n.endDate||'',
-            STATUS_LABEL[n.status]
-          ]));
-          const ws = XLSX.utils.aoa_to_sheet(rows);
-          const wb = XLSX.utils.book_new();
-          XLSX.utils.book_append_sheet(wb, ws, 'WBS');
-          XLSX.writeFile(wb, `wbs-${PROJECT_ID}.xlsx`);
+          // 改由後端 Apache POI 產生，含層級編號與狀態底色
+          window.location.href = `/api/projects/${PROJECT_ID}/nodes/export.xlsx`;
         }
 
         async function applyTemplate(templateId) {

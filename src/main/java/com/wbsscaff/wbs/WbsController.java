@@ -8,9 +8,11 @@ import com.wbsscaff.user.User;
 import com.wbsscaff.user.UserRepository;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 
@@ -22,6 +24,7 @@ public class WbsController {
     private final ProjectService projectService;
     private final UserRepository userRepository;
     private final TemplateService templateService;
+    private final WbsExportService exportService;
 
     // 頁面載入時一次取得所有節點，前端自行建樹（flat list → tree）
     @GetMapping("/api/projects/{projectId}/nodes")
@@ -116,6 +119,32 @@ public class WbsController {
         }
         templateService.applyToProject(templateId, projectId);
         return ApiResponse.ok(null);
+    }
+
+    // 匯出 XLSX：後端用 Apache POI 產生，含層級編號與狀態底色
+    @GetMapping("/api/projects/{projectId}/nodes/export.xlsx")
+    public ResponseEntity<byte[]> exportXlsx(@PathVariable Long projectId,
+            @AuthenticationPrincipal UserDetails userDetails) throws Exception {
+        checkReadAccess(projectId, userDetails);
+        List<WbsDto.Response> nodes = wbsService.getNodes(projectId);
+        byte[] bytes = exportService.buildXlsx(nodes);
+        return ResponseEntity.ok()
+            .header("Content-Disposition", "attachment; filename=\"wbs-" + projectId + ".xlsx\"")
+            .header("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+            .body(bytes);
+    }
+
+    // 匯出 CSV：含 UTF-8 BOM，方便 Excel 正確顯示中文欄位
+    @GetMapping("/api/projects/{projectId}/nodes/export.csv")
+    public ResponseEntity<byte[]> exportCsv(@PathVariable Long projectId,
+            @AuthenticationPrincipal UserDetails userDetails) throws Exception {
+        checkReadAccess(projectId, userDetails);
+        List<WbsDto.Response> nodes = wbsService.getNodes(projectId);
+        String csv = exportService.buildCsv(nodes);
+        return ResponseEntity.ok()
+            .header("Content-Disposition", "attachment; filename=\"wbs-" + projectId + ".csv\"")
+            .header("Content-Type", "text/csv; charset=utf-8")
+            .body(csv.getBytes(StandardCharsets.UTF_8));
     }
 
     // 讀取：有 canReadProject 才能查看節點（部長也可讀）
