@@ -218,11 +218,14 @@
         provide('nodeNumbers', nodeNumbers);
 
         const stats = computed(() => {
-          const total = flatNodes.value.length;
-          const done  = flatNodes.value.filter(n => n.status === 'DONE').length;
-          const inProgress = flatNodes.value.filter(n => n.status === 'IN_PROGRESS').length;
-          return { total, done, inProgress, notStarted: total - done - inProgress,
-                   pct: total ? Math.round(done / total * 100) : 0 };
+          const parentIdSet = new Set(flatNodes.value.map(n => n.parentId).filter(Boolean));
+          const leaves = flatNodes.value.filter(n => !parentIdSet.has(n.id));
+          const total = leaves.length;
+          const done = leaves.filter(n => n.status === 'DONE').length;
+          const inProgress = leaves.filter(n => n.status === 'IN_PROGRESS').length;
+          const notStarted = total - done - inProgress;
+          const pct = total === 0 ? 0 : Math.round((done / total) * 100);
+          return { total, done, inProgress, notStarted, pct };
         });
 
         function buildTree(nodes) {
