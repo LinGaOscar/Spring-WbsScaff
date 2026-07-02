@@ -147,6 +147,24 @@ public class CollabController {
         broker.convertAndSend("/topic/project/" + projectId + "/presence", msg);
     }
 
+    /** 節點拖曳排序：批次更新 parentId + sortOrder，廣播給所有協作者 */
+    @MessageMapping("/project/{projectId}/node/reorder")
+    public void onReorder(@DestinationVariable Long projectId,
+            @Payload List<WbsDto.ReorderWithParentItem> items, Principal principal) {
+        User user = userRepository.findByEmail(principal.getName()).orElseThrow();
+        checkWriteAccess(projectId, user);
+        wbsService.reorderWithParent(projectId, items);
+
+        NodeChangeMessage msg = new NodeChangeMessage();
+        msg.setType(NodeChangeMessage.Type.NODE_REORDER);
+        msg.setPayload(items);
+        NodeChangeMessage.UserInfo ui = new NodeChangeMessage.UserInfo();
+        ui.setUserId(user.getId()); ui.setDisplayName(user.getDisplayName());
+        ui.setColor(collabService.userColor(user.getId()));
+        msg.setOperator(ui);
+        broker.convertAndSend("/topic/project/" + projectId + "/nodes", msg);
+    }
+
     /** 接收游標位置，以 server 端用戶資訊覆蓋後轉發給同一專案的協作者，防止客戶端偽造身份 */
     @MessageMapping("/project/{projectId}/cursor")
     public void onCursor(@DestinationVariable Long projectId,

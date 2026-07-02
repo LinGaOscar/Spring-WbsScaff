@@ -311,6 +311,12 @@
                 }
               } else if (m.type === 'NODE_DELETE') {
                 flatNodes.value = flatNodes.value.filter(n => n.id !== m.nodeId);
+              } else if (m.type === 'NODE_REORDER') {
+                // 批次更新排序位置，避免重新拉取整棵樹（Task 5）
+                flatNodes.value = flatNodes.value.map(n => {
+                  const u = m.payload.find(u => u.nodeId === n.id);
+                  return u ? { ...n, parentId: u.parentId, sortOrder: u.sortOrder } : n;
+                });
               }
             });
 

@@ -5,7 +5,7 @@ import java.time.Instant;
 
 @Data
 public class NodeChangeMessage {
-    public enum Type { NODE_UPDATE, NODE_CREATE, NODE_DELETE }
+    public enum Type { NODE_UPDATE, NODE_CREATE, NODE_DELETE, NODE_REORDER, NODE_RESET }
 
     private Type type;
     private Long nodeId;
