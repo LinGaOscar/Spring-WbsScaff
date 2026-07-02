@@ -6,6 +6,7 @@ import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -104,6 +105,38 @@ public class WbsService {
             node.setParentId(item.getParentId());
             node.setSortOrder(item.getSortOrder());
             wbsRepository.save(node);
+        }
+    }
+
+    // JSON 匯入覆蓋：清除舊節點後以傳入的樹狀結構重建，支援兩層深度
+    @Transactional
+    public List<WbsNode> replaceAll(Long projectId, List<WbsDto.ImportNode> nodes) {
+        Project project = projectRepository.findById(projectId)
+            .orElseThrow(() -> new EntityNotFoundException("專案不存在"));
+        wbsRepository.deleteByProjectId(projectId);
+        List<WbsNode> created = new ArrayList<>();
+        importNodes(project, nodes, null, 0, created);
+        return created;
+    }
+
+    private void importNodes(Project project, List<WbsDto.ImportNode> nodes,
+                             Long parentId, int baseOrder, List<WbsNode> created) {
+        if (nodes == null) return;
+        for (int i = 0; i < nodes.size(); i++) {
+            WbsDto.ImportNode src = nodes.get(i);
+            WbsNode node = new WbsNode();
+            node.setProject(project);
+            node.setParentId(parentId);
+            node.setTitle(src.getTitle());
+            node.setOwner(src.getOwner());
+            node.setStartDate(src.getStartDate());
+            node.setEndDate(src.getEndDate());
+            node.setStatus(src.getStatus() != null ? src.getStatus() : WbsNode.Status.NOT_STARTED);
+            node.setNotes(src.getNotes());
+            node.setSortOrder(baseOrder + i);
+            WbsNode saved = wbsRepository.save(node);
+            created.add(saved);
+            importNodes(project, src.getChildren(), saved.getId(), 0, created);
         }
     }
 }

@@ -37,6 +37,18 @@ public class WbsDto {
         private Integer sortOrder;
     }
 
+    // JSON 匯入時的樹狀節點格式，對應前端匯出的 JSON 結構
+    @Data
+    public static class ImportNode {
+        @NotBlank private String title;
+        private String owner;
+        private LocalDate startDate;
+        private LocalDate endDate;
+        private WbsNode.Status status;
+        private String notes;
+        private List<ImportNode> children;
+    }
+
     @Data
     public static class Response {
         private Long id;

@@ -122,4 +122,59 @@ class WbsServiceTest {
         org.junit.jupiter.api.Assertions.assertThrows(SecurityException.class, () ->
             wbsService.reorderWithParent(project.getId(), List.of(item)));
     }
+
+    @Test
+    void replaceAll_replacesExistingNodes() {
+        // 先建立一個舊節點
+        WbsDto.CreateRequest old = new WbsDto.CreateRequest();
+        old.setTitle("舊節點"); old.setSortOrder(0);
+        wbsService.createNode(project.getId(), old);
+        assertThat(wbsService.getNodes(project.getId())).hasSize(1);
+
+        // 用 replaceAll 替換（根節點帶一個子節點）
+        WbsDto.ImportNode root = new WbsDto.ImportNode();
+        root.setTitle("新根節點");
+        WbsDto.ImportNode child = new WbsDto.ImportNode();
+        child.setTitle("新子節點");
+        root.setChildren(List.of(child));
+
+        List<WbsNode> result = wbsService.replaceAll(project.getId(), List.of(root));
+
+        assertThat(result).hasSize(2);
+        assertThat(wbsService.getNodes(project.getId())).hasSize(2);
+        assertThat(wbsService.getNodes(project.getId())
+            .stream().map(WbsDto.Response::getTitle).toList())
+            .containsExactlyInAnyOrder("新根節點", "新子節點");
+        // 舊節點不應存在
+        assertThat(wbsService.getNodes(project.getId())
+            .stream().noneMatch(n -> "舊節點".equals(n.getTitle()))).isTrue();
+    }
+
+    @Test
+    void replaceAll_emptyList_clearsAllNodes() {
+        // 先建立節點
+        WbsDto.CreateRequest req = new WbsDto.CreateRequest();
+        req.setTitle("要被清除的節點"); req.setSortOrder(0);
+        wbsService.createNode(project.getId(), req);
+        assertThat(wbsService.getNodes(project.getId())).hasSize(1);
+
+        // 空列表應清空所有節點
+        List<WbsNode> result = wbsService.replaceAll(project.getId(), List.of());
+
+        assertThat(result).isEmpty();
+        assertThat(wbsService.getNodes(project.getId())).isEmpty();
+    }
+
+    @Test
+    void replaceAll_nullChildren_noNpe() {
+        // 子節點 children 為 null 時不應拋出 NPE
+        WbsDto.ImportNode root = new WbsDto.ImportNode();
+        root.setTitle("根節點");
+        root.setChildren(null);  // 明確設為 null
+
+        List<WbsNode> result = wbsService.replaceAll(project.getId(), List.of(root));
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).getTitle()).isEqualTo("根節點");
+    }
 }
