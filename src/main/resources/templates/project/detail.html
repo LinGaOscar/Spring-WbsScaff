@@ -84,6 +84,17 @@
           </div>
         </div>
 
+        <!-- 統計進度列 -->
+        <div class="wbs-stats-bar" v-if="hasNodes">
+          <span class="stats-item stats-done">✓ 完成 {{ stats.done }}</span>
+          <span class="stats-item stats-inprogress">▶ 進行中 {{ stats.inProgress }}</span>
+          <span class="stats-item stats-notstarted">○ 未開始 {{ stats.notStarted }}</span>
+          <div class="stats-progress">
+            <div class="stats-progress-fill" :style="{width: stats.pct + '%'}"></div>
+          </div>
+          <span class="stats-pct">{{ stats.pct }}%</span>
+        </div>
+
         <!-- 搜尋 / 展開收合 / 狀態篩選 -->
         <div class="wbs-view-bar" v-if="hasNodes">
           <input type="text" v-model="searchQuery" placeholder="🔍 搜尋節點…" class="wbs-search-input" />

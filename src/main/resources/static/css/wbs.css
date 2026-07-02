@@ -88,3 +88,43 @@
 .template-option:hover { background:#e8f4fd; border-color:#b2d8f5; }
 .template-option-name { font-weight:600; font-size:0.95rem; }
 .template-option-desc { font-size:0.82rem; color:#636e72; margin-top:0.2rem; }
+
+/* 層級編號 */
+.wbs-num {
+  font-size: 0.75rem;
+  color: #a0a0a0;
+  margin-right: 0.4rem;
+  min-width: 2.5rem;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+/* 統計進度列 */
+.wbs-stats-bar {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.5rem 1rem;
+  background: #f8f9fa;
+  border-radius: 6px;
+  margin-bottom: 0.75rem;
+  font-size: 0.85rem;
+  flex-wrap: wrap;
+}
+.stats-done       { color: #27ae60; }
+.stats-inprogress { color: #2980b9; }
+.stats-notstarted { color: #7f8c8d; }
+.stats-progress {
+  flex: 1;
+  min-width: 80px;
+  height: 6px;
+  background: #e0e0e0;
+  border-radius: 3px;
+  overflow: hidden;
+}
+.stats-progress-fill {
+  height: 100%;
+  background: #27ae60;
+  transition: width 0.3s;
+}
+.stats-pct { font-weight: 600; color: #27ae60; min-width: 3rem; }

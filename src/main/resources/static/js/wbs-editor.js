@@ -1,6 +1,27 @@
     const { createApp, ref, computed, onMounted, defineComponent, provide, inject, watch } = Vue;
     const STATUS_LABEL = { NOT_STARTED:'未開始', IN_PROGRESS:'進行中', DONE:'已完成' };
     const STATUS_CYCLE = { NOT_STARTED:'IN_PROGRESS', IN_PROGRESS:'DONE', DONE:'NOT_STARTED' };
+    function syncParentStatus(nodes) {
+      for (const n of nodes) {
+        if (!n.children?.length) continue;
+        syncParentStatus(n.children);
+        const s = n.children.map(c => c.status);
+        n.status = s.every(x => x === 'DONE') ? 'DONE'
+                 : s.some(x => x === 'IN_PROGRESS' || x === 'DONE') ? 'IN_PROGRESS'
+                 : 'NOT_STARTED';
+      }
+    }
+
+    function numbering(nodes, prefix = '') {
+      const map = {};
+      nodes.forEach((n, i) => {
+        const num = prefix ? `${prefix}.${i + 1}` : `${i + 1}`;
+        map[n.id] = num;
+        if (n.children?.length) Object.assign(map, numbering(n.children, num));
+      });
+      return map;
+    }
+
     const h = () => ({ 'Content-Type':'application/json', [CSRF_HEADER]:CSRF_TOKEN });
     const api = (url, opt={}) => fetch(url, { headers: h(), ...opt }).then(r => r.json());
 
@@ -21,6 +42,7 @@
             <span class="wbs-status-badge" @click="!locked && cycleStatus()">
               {{ STATUS_LABEL[node.status] }}
             </span>
+            <span class="wbs-num">{{ nodeNumbers[node.id] }}</span>
             <span class="wbs-title" v-if="!node._editing"
                   @dblclick="!locked && startEdit()">{{ node.title }}</span>
             <input class="wbs-title-input" v-else v-model="editTitle"
@@ -82,6 +104,7 @@
         const editNotes      = ref(props.node.notes     || '');
         const isDragOver     = ref(false);
         const projectMembers = inject('projectMembers', ref([]));
+        const nodeNumbers = inject('nodeNumbers', ref({}));
 
         function startEdit() {
           editTitle.value = props.node.title;
@@ -97,6 +120,7 @@
           emit('cursor-move', { hoveringNodeId: props.node.id, editingNodeId: null });
         }
         function cycleStatus() {
+          if (props.node.children?.length) return;
           const next = STATUS_CYCLE[props.node.status];
           emit('update', { node: props.node, changes: { status: next } });
         }
@@ -132,7 +156,7 @@
         }
 
         return { editTitle, titleInput, editOwner, editStartDate, editEndDate, editNotes,
-                 isDragOver, projectMembers,
+                 isDragOver, projectMembers, nodeNumbers,
                  startEdit, commitEdit, cycleStatus, commitField,
                  onMouseEnter, onMouseLeave, nodeCursors, onNodeDrop, STATUS_LABEL, fmtDate };
       }
@@ -184,9 +208,22 @@
             });
             nodes = nodes.filter(n => vis.has(n.id));
           }
-          return buildTree(nodes);
+          const tree = buildTree(nodes);
+          syncParentStatus(tree);
+          return tree;
         });
         const hasNodes = computed(() => flatNodes.value.length > 0);
+
+        const nodeNumbers = computed(() => numbering(roots.value));
+        provide('nodeNumbers', nodeNumbers);
+
+        const stats = computed(() => {
+          const total = flatNodes.value.length;
+          const done  = flatNodes.value.filter(n => n.status === 'DONE').length;
+          const inProgress = flatNodes.value.filter(n => n.status === 'IN_PROGRESS').length;
+          return { total, done, inProgress, notStarted: total - done - inProgress,
+                   pct: total ? Math.round(done / total * 100) : 0 };
+        });
 
         function buildTree(nodes) {
           const map = {};
@@ -450,7 +487,7 @@
           roots, projectName, quickItems, panelCollapsed, locked, treeHighlight,
           showTemplateModal, availableTemplates, isReadOnly,
           addRoot, addChild, deleteNode, updateNode,
-          exportCsv, exportXlsx, hasNodes,
+          exportCsv, exportXlsx, hasNodes, stats,
           applyTemplate, saveAsTemplate,
           onlineUsers, cursors, sendCursor,
           onDragStart, onDropToRoot, handleDropItem,
