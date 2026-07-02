@@ -31,6 +31,13 @@ public class WbsDto {
     }
 
     @Data
+    public static class ReorderWithParentItem {
+        private Long nodeId;
+        private Long parentId;   // null = L1 根節點
+        private Integer sortOrder;
+    }
+
+    @Data
     public static class Response {
         private Long id;
         private Long parentId;

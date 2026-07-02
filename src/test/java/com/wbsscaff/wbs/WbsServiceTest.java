@@ -74,4 +74,52 @@ class WbsServiceTest {
 
         assertThat(wbsService.getNodes(project.getId())).isEmpty();
     }
+
+    @Test
+    void reorderWithParent_changesParentAndSortOrder() {
+        // 建立兩個根節點
+        WbsDto.CreateRequest r1 = new WbsDto.CreateRequest();
+        r1.setTitle("根1"); r1.setSortOrder(0);
+        WbsNode root1 = wbsService.createNode(project.getId(), r1);
+
+        WbsDto.CreateRequest r2 = new WbsDto.CreateRequest();
+        r2.setTitle("根2"); r2.setSortOrder(1);
+        WbsNode root2 = wbsService.createNode(project.getId(), r2);
+
+        // 建立 root1 的子節點
+        WbsDto.CreateRequest c1 = new WbsDto.CreateRequest();
+        c1.setTitle("子1"); c1.setParentId(root1.getId()); c1.setSortOrder(0);
+        WbsNode child1 = wbsService.createNode(project.getId(), c1);
+
+        // 把 child1 移到 root2 下
+        WbsDto.ReorderWithParentItem item = new WbsDto.ReorderWithParentItem();
+        item.setNodeId(child1.getId());
+        item.setParentId(root2.getId());
+        item.setSortOrder(0);
+        wbsService.reorderWithParent(project.getId(), List.of(item));
+
+        WbsNode updated = wbsRepository.findById(child1.getId()).orElseThrow();
+        assertThat(updated.getParentId()).isEqualTo(root2.getId());
+        assertThat(updated.getSortOrder()).isEqualTo(0);
+    }
+
+    @Test
+    void reorderWithParent_wrongProject_throwsSecurityException() {
+        // 建立另一個專案的節點
+        Project other = new Project(); other.setName("Other");
+        other.setOwner(project.getOwner()); other.setCreatedBy(project.getCreatedBy());
+        other.setDepartment(project.getDepartment()); projectRepository.save(other);
+
+        WbsDto.CreateRequest req = new WbsDto.CreateRequest();
+        req.setTitle("外來節點"); req.setSortOrder(0);
+        WbsNode foreignNode = wbsService.createNode(other.getId(), req);
+
+        WbsDto.ReorderWithParentItem item = new WbsDto.ReorderWithParentItem();
+        item.setNodeId(foreignNode.getId());
+        item.setParentId(null);
+        item.setSortOrder(0);
+
+        org.junit.jupiter.api.Assertions.assertThrows(SecurityException.class, () ->
+            wbsService.reorderWithParent(project.getId(), List.of(item)));
+    }
 }

@@ -92,4 +92,18 @@ public class WbsService {
             wbsRepository.save(node);
         });
     }
+
+    // 支援拖曳跨父移動：同時更新 parentId 與 sortOrder，並驗證所有節點歸屬以防 IDOR
+    @Transactional
+    public void reorderWithParent(Long projectId, List<WbsDto.ReorderWithParentItem> items) {
+        for (WbsDto.ReorderWithParentItem item : items) {
+            WbsNode node = wbsRepository.findById(item.getNodeId())
+                .orElseThrow(() -> new EntityNotFoundException("節點不存在"));
+            if (!node.getProject().getId().equals(projectId))
+                throw new SecurityException("節點不屬於此專案");
+            node.setParentId(item.getParentId());
+            node.setSortOrder(item.getSortOrder());
+            wbsRepository.save(node);
+        }
+    }
 }
