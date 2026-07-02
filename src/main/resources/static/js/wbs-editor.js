@@ -28,13 +28,21 @@
     const WbsNodeComp = defineComponent({
       name: 'wbs-node',
       props: ['node', 'cursors', 'locked', 'depth', 'deleteMode'],
-      emits: ['add-child','delete','update','cursor-move','drop-item'],
+      emits: ['add-child','delete','update','cursor-move','drop-item','node-drop'],
       template: `
         <div class="wbs-node-wrap">
-          <div class="wbs-node" :class="['status-'+node.status.toLowerCase(), {'drag-over': isDragOver, 'is-delete-mode': deleteMode && !locked}]"
+          <div class="wbs-node"
+               :class="['status-'+node.status.toLowerCase(),
+                 {'drag-over': isDragOver && !locked,
+                  'is-delete-mode': deleteMode && !locked,
+                  'drop-before': dropPosition==='before',
+                  'drop-child':  dropPosition==='child',
+                  'drop-after':  dropPosition==='after'}]"
+               draggable="true"
+               @dragstart="!locked && onDragStart($event)"
                @mouseenter="onMouseEnter(node.id)" @mouseleave="onMouseLeave()"
-               @dragover.prevent="isDragOver=(!locked && (depth||1) < 3)"
-               @dragleave="isDragOver=false"
+               @dragover="onDragOver($event)"
+               @dragleave="onDragLeave()"
                @drop.stop="onNodeDrop($event)">
             <span class="wbs-toggle" @click="node._open=!node._open">
               {{ node.children?.length ? (node._open?'▼':'▶') : '　' }}
@@ -91,7 +99,8 @@
                       @delete="$emit('delete',$event)"
                       @update="$emit('update',$event)"
                       @cursor-move="$emit('cursor-move',$event)"
-                      @drop-item="$emit('drop-item',$event)"></wbs-node>
+                      @drop-item="$emit('drop-item',$event)"
+                      @node-drop="$emit('node-drop',$event)"></wbs-node>
           </div>
         </div>
       `,
@@ -103,6 +112,7 @@
         const editEndDate    = ref(props.node.endDate   || '');
         const editNotes      = ref(props.node.notes     || '');
         const isDragOver     = ref(false);
+        const dropPosition   = ref(null); // 'before' | 'child' | 'after' | null
         const projectMembers = inject('projectMembers', ref([]));
         const nodeNumbers = inject('nodeNumbers', ref({}));
 
@@ -141,10 +151,52 @@
             c => c.hoveringNodeId === nodeId || c.editingNodeId === nodeId
           );
         }
-        // 快速子項拖曳到此節點：L1/L2 可接收（最多三層）
+        function onDragStart(event) {
+          event.dataTransfer.setData('application/json',
+            JSON.stringify({ nodeId: props.node.id, depth: props.depth || 1 }));
+          event.dataTransfer.effectAllowed = 'move';
+        }
+
+        function onDragOver(event) {
+          if (props.locked) return;
+          // 快速子項拖曳（text/plain）：走舊邏輯
+          if (!event.dataTransfer.types.includes('application/json')) {
+            isDragOver.value = (props.depth || 1) < 3;
+            return;
+          }
+          event.preventDefault();
+          const rect = event.currentTarget.getBoundingClientRect();
+          const pct  = (event.clientY - rect.top) / rect.height;
+          const hasChildren = props.node.children?.length > 0;
+          if (pct < 0.3) dropPosition.value = 'before';
+          else if (pct > 0.7) dropPosition.value = 'after';
+          else dropPosition.value = (!hasChildren && (props.depth || 1) < 3) ? 'child'
+                                   : (pct < 0.5 ? 'before' : 'after');
+        }
+
+        function onDragLeave() {
+          isDragOver.value = false;
+          dropPosition.value = null;
+        }
+
+        // 同時處理 WBS 節點拖曳（application/json）與快速子項拖曳（text/plain）
         function onNodeDrop(event) {
           isDragOver.value = false;
-          if (props.locked || (props.depth || 1) >= 3) return;
+          if (props.locked) return;
+
+          const jsonRaw = event.dataTransfer.getData('application/json');
+          if (jsonRaw) {
+            const { nodeId } = JSON.parse(jsonRaw);
+            const pos = dropPosition.value;
+            dropPosition.value = null;
+            if (nodeId !== props.node.id && pos) {
+              emit('node-drop', { draggedId: nodeId, targetId: props.node.id, position: pos });
+            }
+            return;
+          }
+
+          // 快速子項拖曳
+          if ((props.depth || 1) >= 3) return;
           const title = event.dataTransfer.getData('text/plain');
           if (!title) return;
           emit('drop-item', { parentId: props.node.id, title });
@@ -156,9 +208,10 @@
         }
 
         return { editTitle, titleInput, editOwner, editStartDate, editEndDate, editNotes,
-                 isDragOver, projectMembers, nodeNumbers,
+                 isDragOver, dropPosition, projectMembers, nodeNumbers,
                  startEdit, commitEdit, cycleStatus, commitField,
-                 onMouseEnter, onMouseLeave, nodeCursors, onNodeDrop, STATUS_LABEL, fmtDate };
+                 onMouseEnter, onMouseLeave, nodeCursors,
+                 onDragStart, onDragOver, onDragLeave, onNodeDrop, STATUS_LABEL, fmtDate };
       }
     });
 
@@ -292,6 +345,68 @@
             destination: `/app/project/${PROJECT_ID}/node/create`,
             body: JSON.stringify({ title, parentId, sortOrder: siblings.length })
           });
+        }
+
+        function isDescendant(ancestorId, targetId) {
+          let node = flatNodes.value.find(n => n.id === targetId);
+          while (node?.parentId != null) {
+            if (node.parentId === ancestorId) return true;
+            node = flatNodes.value.find(n => n.id === node.parentId);
+          }
+          return false;
+        }
+
+        function handleNodeDrop({ draggedId, targetId, position }) {
+          if (locked.value || draggedId === targetId) return;
+          if (isDescendant(draggedId, targetId)) return;
+
+          const dragNode   = flatNodes.value.find(n => n.id === draggedId);
+          const targetNode = flatNodes.value.find(n => n.id === targetId);
+          if (!dragNode || !targetNode) return;
+
+          const dragHasChildren = flatNodes.value.some(n => n.parentId === draggedId);
+          const newParentId = position === 'child' ? targetId : (targetNode.parentId ?? null);
+
+          // L1 有子節點時禁止成為其他節點的子節點（避免 L3）
+          if (newParentId !== null && dragHasChildren) return;
+
+          // 重組節點列表
+          let nodes = flatNodes.value.filter(n => n.id !== draggedId);
+          const updatedDrag = { ...dragNode, parentId: newParentId };
+
+          if (position === 'child') {
+            nodes = [...nodes, updatedDrag];
+          } else {
+            const idx = nodes.findIndex(n => n.id === targetId);
+            const at  = position === 'before' ? idx : idx + 1;
+            nodes = [...nodes.slice(0, at), updatedDrag, ...nodes.slice(at)];
+          }
+
+          // 計算受影響的父節點群組，重新分配 sortOrder
+          const affectedParents = new Set([dragNode.parentId ?? null, newParentId]);
+          const updates = [];
+          affectedParents.forEach(pid => {
+            nodes.filter(n => (n.parentId ?? null) === pid)
+              .forEach((n, i) => {
+                const orig = flatNodes.value.find(o => o.id === n.id);
+                if (i !== orig?.sortOrder || (n.parentId ?? null) !== (orig?.parentId ?? null)) {
+                  updates.push({ nodeId: n.id, parentId: n.parentId ?? null, sortOrder: i });
+                }
+              });
+          });
+
+          // 本地即時更新
+          flatNodes.value = nodes.map(n => {
+            const u = updates.find(u => u.nodeId === n.id);
+            return u ? { ...n, parentId: u.parentId, sortOrder: u.sortOrder } : n;
+          });
+
+          if (stompClient.value?.connected && updates.length) {
+            stompClient.value.publish({
+              destination: `/app/project/${PROJECT_ID}/node/reorder`,
+              body: JSON.stringify(updates)
+            });
+          }
         }
 
         function connectWs() {
@@ -481,7 +596,7 @@
           exportCsv, exportXlsx, hasNodes, stats,
           applyTemplate, saveAsTemplate,
           onlineUsers, cursors, sendCursor,
-          onDragStart, onDropToRoot, handleDropItem,
+          onDragStart, onDropToRoot, handleDropItem, handleNodeDrop,
           deleteMode, hasPending, saveAll,
           searchQuery, statusFilter, expandAll, collapseAll
         };

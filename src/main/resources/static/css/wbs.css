@@ -128,3 +128,8 @@
   transition: width 0.3s;
 }
 .stats-pct { font-weight: 600; color: #27ae60; min-width: 3rem; }
+
+/* 節點拖曳位置指示器 */
+.wbs-node.drop-before { border-top: 3px solid #3498db !important; }
+.wbs-node.drop-after  { border-bottom: 3px solid #3498db !important; }
+.wbs-node.drop-child  { outline: 2px solid #3498db; background: rgba(52,152,219,0.07) !important; }
